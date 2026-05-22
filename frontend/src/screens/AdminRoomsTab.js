@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+﻿import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
 	View,
 	Text,
@@ -353,6 +353,7 @@ export default function AdminRoomsTab() {
 							renderItem={renderItem}
 							refreshing={refreshing}
 							onRefresh={onRefresh}
+							showsVerticalScrollIndicator={false}
 							ListEmptyComponent={
 								<View style={styles.emptyWrap}>
 									<Ionicons name="home-outline" size={40} color="#d1d5db" />
@@ -426,6 +427,7 @@ const styles = StyleSheet.create({
 	},
 	addText: { color: '#fff', fontWeight: '700', fontSize: 13 },
 	tableCard: {
+		flex: 1,
 		backgroundColor: '#fff', borderRadius: 14,
 		borderWidth: 1, borderColor: '#e5e7eb', overflow: 'hidden',
 		shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8,

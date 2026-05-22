@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+﻿import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
 	View,
 	Text,
@@ -323,7 +323,7 @@ export default function AdminUserScreen() {
 							<Ionicons name="person-outline" size={20} color="rgba(255,255,255,0.9)" />
 						</View>
 						<Text style={styles.statNumber}>{totalUsers - adminCount}</Text>
-						<Text style={styles.statLabel}>Users</Text>
+						<Text style={styles.statLabel}>Normal Users</Text>
 					</View>
 				</View>
 			</View>
@@ -400,6 +400,7 @@ export default function AdminUserScreen() {
 							renderItem={renderItem}
 							refreshing={refreshing}
 							onRefresh={onRefresh}
+							showsVerticalScrollIndicator={false}
 							ListEmptyComponent={
 								<View style={styles.emptyWrap}>
 									<Ionicons name="people-outline" size={40} color="#d1d5db" />
@@ -568,6 +569,7 @@ const styles = StyleSheet.create({
 		fontSize: 13,
 	},
 	tableCard: {
+		flex: 1,
 		backgroundColor: '#fff',
 		borderRadius: 14,
 		borderWidth: 1,

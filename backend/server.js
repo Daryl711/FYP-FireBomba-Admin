@@ -4,6 +4,7 @@ const authRouter = require('./routes/auth.routes');
 const userRouter = require('./routes/user.routes');
 const alertRouter = require('./routes/alert.routes');
 const roomRouter = require('./routes/room.routes');
+const sensorRouter = require('./routes/sensor.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -15,6 +16,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/auth', userRouter);
 app.use('/api', alertRouter);
 app.use('/api', roomRouter);
+app.use('/api', sensorRouter);
 
 app.listen(PORT, () => {
     console.log(`FireBomba backend running on port ${PORT}`);

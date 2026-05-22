@@ -187,4 +187,4 @@ VALUES
     (12, 3, 'Humidity', TRUE, NOW()),
     (13, 3, 'Smoke', FALSE, NOW()),
     (14, 3, 'CO', TRUE, NOW()),
-    (15, 3, 'Flame', TRUE, NOW());
+    (15, 3, 'Flame', TRUE, NOW());      

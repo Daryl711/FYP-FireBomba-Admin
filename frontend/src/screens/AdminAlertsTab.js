@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+﻿import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
 	View,
 	Text,
@@ -279,6 +279,7 @@ export default function AdminAlertsTab() {
 							renderItem={renderItem}
 							refreshing={refreshing}
 							onRefresh={onRefresh}
+							showsVerticalScrollIndicator={false}
 							ListEmptyComponent={
 								<View style={styles.emptyWrap}>
 									<Ionicons name="notifications-off-outline" size={40} color="#d1d5db" />
@@ -393,6 +394,7 @@ const styles = StyleSheet.create({
 	filterText: { color: '#374151', fontSize: 13, fontWeight: '600' },
 	filterTextActive: { color: '#ea580c' },
 	tableCard: {
+		flex: 1,
 		backgroundColor: '#fff',
 		borderRadius: 14,
 		borderWidth: 1,
