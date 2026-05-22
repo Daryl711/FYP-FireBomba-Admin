@@ -87,36 +87,6 @@ export default function AdminSensorTab() {
 
 	const sortLabel = sortBy === 'type' ? 'Sort by Type' : sortBy === 'room' ? 'Sort by Room' : 'Sort by ID';
 
-	const handleToggle = useCallback(async (sensorId) => {
-		try {
-			const res = await fetch(`${API_BASE_URL}/api/sensors/${sensorId}/toggle`, {
-				method: 'PATCH',
-				headers: authHeader,
-			});
-			if (!res.ok) { Alert.alert('Error', 'Failed to update sensor'); return; }
-			setSensors((cur) => cur.map((s) => s.id === sensorId ? { ...s, isOnline: !s.isOnline } : s));
-		} catch {
-			Alert.alert('Error', 'Unable to connect to server.');
-		}
-	}, [user?.token]);
-
-	const handleDelete = useCallback((sensorId, sensorType) => {
-		Alert.alert('Delete Sensor', `Delete ${sensorType} sensor? This cannot be undone.`, [
-			{ text: 'Cancel', style: 'cancel' },
-			{
-				text: 'Delete', style: 'destructive',
-				onPress: async () => {
-					try {
-						const res = await fetch(`${API_BASE_URL}/api/sensors/${sensorId}`, {
-							method: 'DELETE', headers: authHeader,
-						});
-						if (!res.ok) { Alert.alert('Error', 'Failed to delete sensor'); return; }
-						setSensors((cur) => cur.filter((s) => s.id !== sensorId));
-					} catch { Alert.alert('Error', 'Unable to connect to server.'); }
-				},
-			},
-		]);
-	}, [user?.token]);
 
 	const renderItem = ({ item, index }) => {
 		const isEven = index % 2 === 0;
@@ -155,23 +125,6 @@ export default function AdminSensorTab() {
 					<Text style={styles.dateText}>{item.lastUpdated}</Text>
 				</View>
 
-				<View style={styles.colAction}>
-					<View style={styles.actionButtons}>
-						<TouchableOpacity
-							style={[styles.toggleBtn, item.isOnline ? styles.toggleBtnOn : styles.toggleBtnOff]}
-							onPress={() => handleToggle(item.id)}
-						>
-							<Ionicons
-								name={item.isOnline ? 'pause-circle-outline' : 'play-circle-outline'}
-								size={16}
-								color={item.isOnline ? '#b45309' : '#047857'}
-							/>
-						</TouchableOpacity>
-						<TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item.id, item.type)}>
-							<Ionicons name="trash-outline" size={16} color="#e53935" />
-						</TouchableOpacity>
-					</View>
-				</View>
 			</View>
 		);
 	};
@@ -266,7 +219,6 @@ export default function AdminSensorTab() {
 						<Text style={[styles.headerCell, styles.roomCell]}>Room</Text>
 						<Text style={[styles.headerCell, styles.statusCell]}>Status</Text>
 						<Text style={[styles.headerCell, styles.dateCell]}>Last Updated</Text>
-						<Text style={[styles.headerCell, styles.actionCell]}>Actions</Text>
 					</View>
 
 					{loading ? (
@@ -363,7 +315,6 @@ const styles = StyleSheet.create({
 	roomCell: { flex: 0.7, textAlign: 'center' },
 	statusCell: { flex: 0.9, textAlign: 'center' },
 	dateCell: { flex: 1.1, textAlign: 'center' },
-	actionCell: { flex: 0.8, textAlign: 'center' },
 	row: {
 		flexDirection: 'row', alignItems: 'center',
 		paddingVertical: 13, paddingHorizontal: 16,
@@ -374,7 +325,6 @@ const styles = StyleSheet.create({
 	colLarge: { flex: 1.8 },
 	colSmall: { flex: 0.7, alignItems: 'center' },
 	colMedium: { flex: 1.1, alignItems: 'center' },
-	colAction: { flex: 0.8, alignItems: 'center' },
 	sensorInfo: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 	sensorDetails: { flex: 1 },
 	sensorType: { fontSize: 14, fontWeight: '600', color: '#111827' },
@@ -402,11 +352,6 @@ const styles = StyleSheet.create({
 	statusTextOnline: { color: '#047857' },
 	statusTextOffline: { color: '#6b7280' },
 	dateText: { color: '#9ca3af', fontSize: 12, textAlign: 'center' },
-	actionButtons: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-	toggleBtn: { padding: 7, borderRadius: 8 },
-	toggleBtnOn: { backgroundColor: '#fef3c7' },
-	toggleBtnOff: { backgroundColor: '#d1fae5' },
-	deleteBtn: { padding: 7, backgroundColor: '#fff1f2', borderRadius: 8 },
 	loader: { marginTop: 32 },
 	emptyWrap: { alignItems: 'center', marginTop: 40, gap: 10 },
 	empty: { textAlign: 'center', color: '#9ca3af', fontSize: 14 },
