@@ -17,6 +17,7 @@ import AdminUsersTab from "../screens/AdminUsersTab";
 import AdminRoomsTab from "../screens/AdminRoomsTab";
 import AdminAlertsTab from "../screens/AdminAlertsTab";
 import AdminSensorTab from "../screens/AdminSensorTab";
+import AdminWaterpumpTab from "../screens/AdminWaterpumpTab";
 import { useApp } from "../context/AppContext";
 
 const AdminTab = createBottomTabNavigator();
@@ -29,6 +30,7 @@ const ADMIN_NAV_ITEMS = [
   { key: "AdminRooms",   label: "Rooms",   icon: "home-outline",          activeIcon: "home" },
   { key: "AdminSensors", label: "Sensors", icon: "pulse-outline",         activeIcon: "pulse" },
   { key: "AdminAlerts",  label: "Alerts",  icon: "notifications-outline", activeIcon: "notifications" },
+  { key: "AdminWaterpump", label: "Pump",  icon: "water-outline",         activeIcon: "water" },
   { key: "AdminProfile", label: "Profile", icon: "person-outline",        activeIcon: "person" },
 ];
 
@@ -47,6 +49,7 @@ function renderAdminScreen(key) {
     case "AdminRooms":   return <AdminRoomsTab />;
     case "AdminSensors": return <AdminSensorTab />;
     case "AdminAlerts":  return <AdminAlertsTab />;
+    case "AdminWaterpump": return <AdminWaterpumpTab />;
     case "AdminProfile": return <AdminPlaceholder title="Profile" />;
     default:             return <AdminUsersTab />;
   }
@@ -189,6 +192,11 @@ function AdminTabs({ navigation }) {
         name="AdminAlerts"
         component={AdminAlertsTab}
         options={{ tabBarLabel: "Alerts" }}
+      />
+      <AdminTab.Screen
+        name="AdminWaterpump"
+        component={AdminWaterpumpTab}
+        options={{ tabBarLabel: "Pump" }}
       />
       <AdminTab.Screen
         name="AdminProfile"
