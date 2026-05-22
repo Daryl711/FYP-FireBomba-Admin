@@ -229,36 +229,6 @@ export default function AdminRoomsTab() {
 								onChangeText={(v) => setForm((f) => ({ ...f, name: v }))}
 							/>
 
-							<Text style={styles.fieldLabel}>Status</Text>
-							<View style={styles.toggleRow}>
-								{[['0', 'Safe'], ['1', 'Alert']].map(([val, label]) => (
-									<TouchableOpacity
-										key={val}
-										style={[styles.toggleOption, form.status === val && (val === '1' ? styles.toggleOptionAlert : styles.toggleOptionSafe)]}
-										onPress={() => setForm((f) => ({ ...f, status: val }))}
-									>
-										<Text style={[styles.toggleText, form.status === val && (val === '1' ? styles.toggleTextAlert : styles.toggleTextSafe)]}>
-											{label}
-										</Text>
-									</TouchableOpacity>
-								))}
-							</View>
-
-							<Text style={styles.fieldLabel}>Camera</Text>
-							<View style={styles.toggleRow}>
-								{[[false, 'No'], [true, 'Yes']].map(([val, label]) => (
-									<TouchableOpacity
-										key={String(val)}
-										style={[styles.toggleOption, form.cameraEnabled === val && styles.toggleOptionCamera]}
-										onPress={() => setForm((f) => ({ ...f, cameraEnabled: val }))}
-									>
-										<Text style={[styles.toggleText, form.cameraEnabled === val && styles.toggleTextCamera]}>
-											{label}
-										</Text>
-									</TouchableOpacity>
-								))}
-							</View>
-
 							{formError ? (
 								<View style={styles.formErrorWrap}>
 									<Ionicons name="alert-circle-outline" size={14} color="#dc2626" />
@@ -531,18 +501,6 @@ const styles = StyleSheet.create({
 		paddingHorizontal: 14, paddingVertical: 11, fontSize: 15,
 		color: '#111827', backgroundColor: '#f9fafb',
 	},
-	toggleRow: { flexDirection: 'row', gap: 10 },
-	toggleOption: {
-		flex: 1, paddingVertical: 10, borderRadius: 10,
-		borderWidth: 1, borderColor: '#e5e7eb', alignItems: 'center', backgroundColor: '#f9fafb',
-	},
-	toggleOptionSafe: { borderColor: '#16a34a', backgroundColor: '#dcfce7' },
-	toggleOptionAlert: { borderColor: '#e53935', backgroundColor: '#fee2e2' },
-	toggleOptionCamera: { borderColor: '#0369a1', backgroundColor: '#e0f2fe' },
-	toggleText: { fontSize: 14, fontWeight: '600', color: '#6b7280' },
-	toggleTextSafe: { color: '#15803d' },
-	toggleTextAlert: { color: '#b91c1c' },
-	toggleTextCamera: { color: '#0369a1' },
 	formErrorWrap: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12 },
 	formErrorText: { color: '#dc2626', fontSize: 13, flex: 1 },
 	submitBtn: {
