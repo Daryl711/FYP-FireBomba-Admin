@@ -15,6 +15,8 @@ import { Ionicons } from "@expo/vector-icons";
 import AdminLogin from "../screens/AdminLogin";
 import AdminUsersTab from "../screens/AdminUsersTab";
 import AdminRoomsTab from "../screens/AdminRoomsTab";
+import AdminAlertsTab from "../screens/AdminAlertsTab";
+import { useApp } from "../context/AppContext";
 
 const AdminTab = createBottomTabNavigator();
 const RootStack = createNativeStackNavigator();
@@ -43,7 +45,7 @@ function renderAdminScreen(key) {
     case "AdminUsers":   return <AdminUsersTab />;
     case "AdminRooms":   return <AdminRoomsTab />;
     case "AdminSensors": return <AdminPlaceholder title="Sensors" />;
-    case "AdminAlerts":  return <AdminPlaceholder title="Alerts" />;
+    case "AdminAlerts":  return <AdminAlertsTab />;
     case "AdminProfile": return <AdminPlaceholder title="Profile" />;
     default:             return <AdminUsersTab />;
   }
@@ -52,6 +54,7 @@ function renderAdminScreen(key) {
 // Sidebar layout rendered on wide web screens (>= 768 px)
 function AdminWebLayout({ navigation }) {
   const [activeTab, setActiveTab] = useState("AdminUsers");
+  const { setUser } = useApp();
 
   return (
     <View style={webStyles.root}>
@@ -93,7 +96,7 @@ function AdminWebLayout({ navigation }) {
 
         <TouchableOpacity
           style={webStyles.logoutBtn}
-          onPress={() => navigation.replace("AdminLogin")}
+          onPress={() => { setUser(null); navigation.replace("AdminLogin"); }}
         >
           <Ionicons name="log-out-outline" size={20} color="#6b7280" />
           <Text style={webStyles.logoutText}>Logout</Text>
@@ -163,7 +166,7 @@ function AdminTabs({ navigation }) {
       />
       <AdminTab.Screen
         name="AdminAlerts"
-        children={() => <AdminPlaceholder title="Admin Alerts" />}
+        component={AdminAlertsTab}
         options={{ tabBarLabel: "Alerts" }}
       />
       <AdminTab.Screen

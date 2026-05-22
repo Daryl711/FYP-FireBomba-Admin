@@ -113,14 +113,14 @@ CREATE TABLE IF NOT EXISTS AlertNotification (
     FOREIGN KEY (room_id) REFERENCES Rooms(room_id) ON DELETE CASCADE
 );
 
-INSERT INTO AlertNotification (room_id, warning_title)
+INSERT INTO AlertNotification (alert_id, room_id, timestamp, warning_title, is_read)
 VALUES (
     1,
     1,
     NOW(),
     'High Temperature Detected',
     FALSE
-)
+);
 
 CREATE TABLE IF NOT EXISTS SensorAggregates (
     aggregate_id INT PRIMARY KEY AUTO_INCREMENT,
