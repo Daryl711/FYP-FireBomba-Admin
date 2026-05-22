@@ -346,7 +346,7 @@ export default function AdminUserScreen() {
 						)}
 					</View>
 
-					<View style={styles.rightControls}>
+					<View style={styles.controlsWrap}>
 						<TouchableOpacity
 							style={styles.sortBtn}
 							onPress={() => setShowSortMenu((open) => !open)}
@@ -472,14 +472,10 @@ const styles = StyleSheet.create({
 		paddingBottom: 16,
 	},
 	toolbar: {
-		flexDirection: 'row',
-		alignItems: 'center',
 		marginBottom: 14,
-		gap: 8,
 		zIndex: 10,
 	},
 	searchBox: {
-		flex: 1,
 		flexDirection: 'row',
 		alignItems: 'center',
 		backgroundColor: '#fff',
@@ -489,16 +485,17 @@ const styles = StyleSheet.create({
 		borderWidth: 1,
 		borderColor: '#e5e7eb',
 		gap: 8,
+		marginBottom: 10,
 	},
 	searchInput: {
 		flex: 1,
 		color: '#111827',
 		fontSize: 14,
 	},
-	rightControls: {
+	controlsWrap: {
 		flexDirection: 'row',
 		alignItems: 'center',
-		gap: 8,
+		justifyContent: 'space-between',
 		position: 'relative',
 		zIndex: 10,
 	},

@@ -263,61 +263,63 @@ export default function AdminRoomsTab() {
 					</View>
 
 					<View style={styles.controlsWrap}>
-						<TouchableOpacity
-							style={styles.sortBtn}
-							onPress={() => setShowSortMenu((open) => !open)}
-						>
-							<Text style={styles.sortText}>{getSortLabel(sortBy)}</Text>
-							<Ionicons
-								name={showSortMenu ? "chevron-up" : "chevron-down"}
-								size={16}
-								color="#222"
-							/>
-						</TouchableOpacity>
+						<View style={styles.leftControls}>
+							<TouchableOpacity
+								style={styles.sortBtn}
+								onPress={() => setShowSortMenu((open) => !open)}
+							>
+								<Text style={styles.sortText}>{getSortLabel(sortBy)}</Text>
+								<Ionicons
+									name={showSortMenu ? "chevron-up" : "chevron-down"}
+									size={16}
+									color="#222"
+								/>
+							</TouchableOpacity>
 
-						<TouchableOpacity
-							style={[
-								styles.alertFilterBtn,
-								filterAlertsOnly ? styles.alertFilterBtnOn : null,
-							]}
-							onPress={() => setFilterAlertsOnly((current) => !current)}
-						>
-							<Text style={styles.alertFilterText}>Alert Rooms</Text>
-						</TouchableOpacity>
+							<TouchableOpacity
+								style={[
+									styles.alertFilterBtn,
+									filterAlertsOnly ? styles.alertFilterBtnOn : null,
+								]}
+								onPress={() => setFilterAlertsOnly((current) => !current)}
+							>
+								<Text style={styles.alertFilterText}>Alert Rooms</Text>
+							</TouchableOpacity>
+
+							{showSortMenu ? (
+								<View style={styles.sortMenu}>
+									<TouchableOpacity
+										style={styles.sortOption}
+										onPress={() => {
+											setSortBy("name");
+											setShowSortMenu(false);
+										}}
+									>
+										<Text style={styles.sortOptionText}>Sort by Name</Text>
+										{sortBy === "name" ? (
+											<Ionicons name="checkmark" size={18} color="#111" />
+										) : null}
+									</TouchableOpacity>
+									<TouchableOpacity
+										style={styles.sortOption}
+										onPress={() => {
+											setSortBy("created");
+											setShowSortMenu(false);
+										}}
+									>
+										<Text style={styles.sortOptionText}>Sort by Date</Text>
+										{sortBy === "created" ? (
+											<Ionicons name="checkmark" size={18} color="#111" />
+										) : null}
+									</TouchableOpacity>
+								</View>
+							) : null}
+						</View>
 
 						<TouchableOpacity style={styles.addBtn} onPress={openAddRoom}>
 							<Ionicons name="add" size={16} color="#fff" />
 							<Text style={styles.addText}>Add Room</Text>
 						</TouchableOpacity>
-
-						{showSortMenu ? (
-							<View style={styles.sortMenu}>
-								<TouchableOpacity
-									style={styles.sortOption}
-									onPress={() => {
-										setSortBy("name");
-										setShowSortMenu(false);
-									}}
-								>
-									<Text style={styles.sortOptionText}>Sort by Name</Text>
-									{sortBy === "name" ? (
-										<Ionicons name="checkmark" size={18} color="#111" />
-									) : null}
-								</TouchableOpacity>
-								<TouchableOpacity
-									style={styles.sortOption}
-									onPress={() => {
-										setSortBy("created");
-										setShowSortMenu(false);
-									}}
-								>
-									<Text style={styles.sortOptionText}>Sort by Date</Text>
-									{sortBy === "created" ? (
-										<Ionicons name="checkmark" size={18} color="#111" />
-									) : null}
-								</TouchableOpacity>
-							</View>
-						) : null}
 					</View>
 				</View>
 
@@ -416,7 +418,8 @@ const styles = StyleSheet.create({
 		marginBottom: 10,
 	},
 	searchInput: { marginLeft: 8, flex: 1, color: "#222" },
-	controlsWrap: { flexDirection: "row", alignItems: "center", position: "relative" },
+	controlsWrap: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", position: "relative" },
+	leftControls: { flexDirection: "row", alignItems: "center", gap: 8, position: "relative" },
 	sortBtn: {
 		backgroundColor: "#f3f4f6",
 		borderWidth: 1,
@@ -424,7 +427,6 @@ const styles = StyleSheet.create({
 		paddingHorizontal: 12,
 		paddingVertical: 9,
 		borderRadius: 10,
-		marginRight: 8,
 		minWidth: 130,
 		flexDirection: "row",
 		justifyContent: "space-between",
@@ -458,7 +460,6 @@ const styles = StyleSheet.create({
 		paddingHorizontal: 12,
 		paddingVertical: 9,
 		borderRadius: 10,
-		marginRight: 8,
 	},
 	alertFilterBtnOn: {
 		backgroundColor: "#fee2e2",
