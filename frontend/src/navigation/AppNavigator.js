@@ -18,6 +18,7 @@ import AdminRoomsTab from "../screens/AdminRoomsTab";
 import AdminAlertsTab from "../screens/AdminAlertsTab";
 import AdminSensorTab from "../screens/AdminSensorTab";
 import AdminWaterpumpTab from "../screens/AdminWaterpumpTab";
+import AdminProfile from "../screens/AdminProfile";
 import { useApp } from "../context/AppContext";
 
 const AdminTab = createBottomTabNavigator();
@@ -50,7 +51,7 @@ function renderAdminScreen(key) {
     case "AdminSensors": return <AdminSensorTab />;
     case "AdminAlerts":  return <AdminAlertsTab />;
     case "AdminWaterpump": return <AdminWaterpumpTab />;
-    case "AdminProfile": return <AdminPlaceholder title="Profile" />;
+    case "AdminProfile": return <AdminProfile />;
     default:             return <AdminUsersTab />;
   }
 }
@@ -200,7 +201,7 @@ function AdminTabs({ navigation }) {
       />
       <AdminTab.Screen
         name="AdminProfile"
-        children={() => <AdminPlaceholder title="Admin Profile" />}
+        component={AdminProfile}
         options={{ tabBarLabel: "Profile" }}
       />
     </AdminTab.Navigator>

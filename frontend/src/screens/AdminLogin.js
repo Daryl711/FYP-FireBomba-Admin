@@ -23,6 +23,8 @@ export default function AdminLogin({ navigation }) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
 
   const handleLogin = async () => {
     setError('');
@@ -80,12 +82,14 @@ export default function AdminLogin({ navigation }) {
 
             <View>
               <Text style={styles.label}>Email</Text>
-              <View style={[styles.inputWrap, !!error && styles.inputWrapError]}>
+              <View style={[styles.inputWrap, !!error && styles.inputWrapError, emailFocused && styles.inputWrapFocused]}>
                 <Ionicons name="mail-outline" size={18} color="#9ca3af" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   value={email}
                   onChangeText={(v) => { setEmail(v); setError(''); }}
+                  onFocus={() => setEmailFocused(true)}
+                  onBlur={() => setEmailFocused(false)}
                   placeholder="admin@firebomba.com"
                   placeholderTextColor="#9ca3af"
                   keyboardType="email-address"
@@ -96,12 +100,14 @@ export default function AdminLogin({ navigation }) {
               </View>
 
               <Text style={[styles.label, styles.labelSpaced]}>Password</Text>
-              <View style={[styles.inputWrap, !!error && styles.inputWrapError]}>
+              <View style={[styles.inputWrap, !!error && styles.inputWrapError, passwordFocused && styles.inputWrapFocused]}>
                 <Ionicons name="lock-closed-outline" size={18} color="#9ca3af" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   value={password}
                   onChangeText={(v) => { setPassword(v); setError(''); }}
+                  onFocus={() => setPasswordFocused(true)}
+                  onBlur={() => setPasswordFocused(false)}
                   placeholder="Enter password"
                   placeholderTextColor="#9ca3af"
                   secureTextEntry={!showPassword}
@@ -162,13 +168,15 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 28,
+    borderRadius: 20,
+    padding: 32,
     shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    shadowOpacity: 0.1,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: '#f3f4f6',
   },
   cardWeb: {
     width: '100%',
@@ -209,11 +217,16 @@ const styles = StyleSheet.create({
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#e5e7eb',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    backgroundColor: '#f9fafb',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
   },
   inputWrapError: {
     borderColor: '#fca5a5',
@@ -222,9 +235,11 @@ const styles = StyleSheet.create({
   inputIcon: { marginRight: 8 },
   input: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 14,
     fontSize: 15,
     color: '#111827',
+    outlineWidth: 0,
+    outlineStyle: 'none',
   },
   eyeBtn: { padding: 4 },
   errorWrap: {
