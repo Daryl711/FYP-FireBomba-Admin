@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS Rooms (
 );
 INSERT INTO Rooms (name, status, last_update)
 VALUES ("Room 1", "Active", NOW()),
+       ("Room 2", "Active", NOW());
 
 -- 2. Users Table
 CREATE TABLE IF NOT EXISTS Users(
@@ -37,7 +38,7 @@ VALUES (
         1,
         1,
         'admin@gmail.com',
-        '123456',
+        '$2a$10$Ws5hhCulP8GlpEI3Lwx0M.hbpjfxAJ0EFiVhCGcSRk.V8Ma9M8uTS',
         'Admin User',
         'Admin'
     ),
@@ -45,7 +46,7 @@ VALUES (
         2,
         1,
         'test@gmail.com',
-        '123456',
+        '$2a$10$fkfQZ9YHaotEPPlZ6jkOc.XaV895.bNAMY2DEDLbVMB8kFa0FXjjm',
         'Test User',
         'User'
     ),
@@ -53,7 +54,7 @@ VALUES (
         3,
         2,
         'test2@gmail.com',
-        '123456',
+        '$2a$10$WY6bPepmZ3oPQ2lJcyWs1e4LLJz76yEpJmrsMUwr4BsxJ7LeeTa4m',
         'Test User 2',
         'User'
     );
