@@ -1,4 +1,4 @@
-DROP DATABASE firebomba_db;
+DROP DATABASE IF EXISTS firebomba_db;
 CREATE DATABASE firebomba_db;
 USE firebomba_db;
 
@@ -8,11 +8,13 @@ CREATE TABLE IF NOT EXISTS Rooms (
     room_id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(50) NOT NULL,
     status VARCHAR(50),
-    last_update DATETIME
+    last_updated DATETIME,
+    camera_enabled BOOLEAN DEFAULT 0
 );
-INSERT INTO Rooms (name, status, last_update)
-VALUES ("Room 1", "Active", NOW()),
-       ("Room 2", "Active", NOW());
+INSERT INTO Rooms (room_id, name, status, last_updated, camera_enabled)
+VALUES (1, "Room 1", "0", NOW(), 1),
+       (2, "Kitchen", "0", NOW(), 1),
+       (3, "Room 2", "1", NOW(), 0);
 
 -- 2. Users Table
 CREATE TABLE IF NOT EXISTS Users(
@@ -21,8 +23,7 @@ CREATE TABLE IF NOT EXISTS Users(
     email VARCHAR(50) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     full_name VARCHAR(50) NOT NULL,
-    role ENUM('Admin', 'User') NOT NULL DEFAULT 'User',
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    role VARCHAR(20) NOT NULL,
     FOREIGN KEY (room_id) REFERENCES Rooms(room_id) ON DELETE CASCADE
 );
 -- Insert Users Data
@@ -77,7 +78,6 @@ CREATE TABLE IF NOT EXISTS Actuators (
     actuator_id INT PRIMARY KEY AUTO_INCREMENT,
     room_id INT NOT NULL,
     last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
-    name VARCHAR(50),
     activated_status BOOLEAN,
     FOREIGN KEY (room_id) REFERENCES Rooms(room_id) ON DELETE CASCADE
 );
@@ -112,16 +112,32 @@ CREATE TABLE IF NOT EXISTS AlertNotification (
     is_read BOOLEAN DEFAULT FALSE,
     FOREIGN KEY (room_id) REFERENCES Rooms(room_id) ON DELETE CASCADE
 );
-
-INSERT INTO AlertNotification (alert_id, room_id, timestamp, warning_title, is_read)
+INSERT INTO AlertNotification (
+        alert_id,
+        room_id,
+        timestamp,
+        warning_title,
+        is_read
+    )
 VALUES (
-    1,
-    1,
-    NOW(),
-    'High Temperature Detected',
-    FALSE
+        1,
+        1,
+        NOW(),
+        'High Temperature Detected',
+        FALSE
+    );
+
+-- 8. RefreshTokens Table
+CREATE TABLE IF NOT EXISTS RefreshTokens (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    token VARCHAR(512) NOT NULL UNIQUE,
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
 );
 
+-- 9. SensorAggregates Table
 CREATE TABLE IF NOT EXISTS SensorAggregates (
     aggregate_id INT PRIMARY KEY AUTO_INCREMENT,
     room_id INT NOT NULL,
@@ -139,3 +155,31 @@ CREATE TABLE IF NOT EXISTS SensorAggregates (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (room_id) REFERENCES Rooms(room_id) ON DELETE CASCADE
 );
+
+-- 10. Admin Sensor Table
+CREATE TABLE IF NOT EXISTS AdminSensor (
+    sensor_id INT PRIMARY KEY AUTO_INCREMENT,
+    room_id INT NOT NULL,
+    sensor_type VARCHAR(50),
+    status BOOLEAN DEFAULT TRUE,
+    last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (room_id) REFERENCES Rooms(room_id) ON DELETE CASCADE
+);
+
+INSERT INTO AdminSensor (sensor_id, room_id, sensor_type, status, last_updated)
+VALUES
+    (1, 1, 'Temperature', TRUE, NOW()),
+    (2, 1, 'Humidity', TRUE, NOW()),
+    (3, 1, 'Smoke', TRUE, NOW()),
+    (4, 1, 'CO', TRUE, NOW()),
+    (5, 1, 'Flame', TRUE, NOW()),
+    (6, 2, 'Temperature', TRUE, NOW()),
+    (7, 2, 'Humidity', FALSE, NOW()),
+    (8, 2, 'Smoke', TRUE, NOW()),
+    (9, 2, 'CO', TRUE, NOW()),
+    (10, 2, 'Flame', TRUE, NOW()),
+    (11, 3, 'Temperature', TRUE, NOW()),
+    (12, 3, 'Humidity', TRUE, NOW()),
+    (13, 3, 'Smoke', FALSE, NOW()),
+    (14, 3, 'CO', TRUE, NOW()),
+    (15, 3, 'Flame', TRUE, NOW());

@@ -51,10 +51,26 @@ function renderAdminScreen(key) {
   }
 }
 
+const ACTIVE_TAB_KEY = 'firebomba_active_tab';
+
+function loadActiveTab() {
+  try { return localStorage.getItem(ACTIVE_TAB_KEY) || "AdminUsers"; } catch {}
+  return "AdminUsers";
+}
+
 // Sidebar layout rendered on wide web screens (>= 768 px)
 function AdminWebLayout({ navigation }) {
-  const [activeTab, setActiveTab] = useState("AdminUsers");
+  const [activeTab, setActiveTabState] = useState(() =>
+    Platform.OS === 'web' ? loadActiveTab() : "AdminUsers"
+  );
   const { setUser } = useApp();
+
+  const setActiveTab = (tab) => {
+    setActiveTabState(tab);
+    if (Platform.OS === 'web') {
+      try { localStorage.setItem(ACTIVE_TAB_KEY, tab); } catch {}
+    }
+  };
 
   return (
     <View style={webStyles.root}>
@@ -96,7 +112,11 @@ function AdminWebLayout({ navigation }) {
 
         <TouchableOpacity
           style={webStyles.logoutBtn}
-          onPress={() => { setUser(null); navigation.replace("AdminLogin"); }}
+          onPress={() => {
+            setUser(null);
+            try { localStorage.removeItem(ACTIVE_TAB_KEY); } catch {}
+            navigation.replace("AdminLogin");
+          }}
         >
           <Ionicons name="log-out-outline" size={20} color="#6b7280" />
           <Text style={webStyles.logoutText}>Logout</Text>
