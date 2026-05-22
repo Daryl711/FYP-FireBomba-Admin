@@ -90,48 +90,48 @@ export default function AdminAlertsTab() {
 
 	const sortLabel = sortBy === 'oldest' ? 'Oldest First' : 'Newest First';
 
-	const handleAcknowledge = useCallback(async (alertId) => {
-		try {
-			const res = await fetch(`${API_BASE_URL}/api/alerts/${alertId}/acknowledge`, {
-				method: 'PATCH',
-				headers: authHeader,
-			});
-			if (!res.ok) {
-				const data = await res.json();
-				Alert.alert('Error', data.error || 'Failed to update alert');
-				return;
-			}
-			setAlerts((cur) => cur.map((a) => a.id === alertId ? { ...a, isRead: !a.isRead } : a));
-		} catch {
-			Alert.alert('Error', 'Unable to connect to server.');
-		}
-	}, [user?.token]);
+	// const handleAcknowledge = useCallback(async (alertId) => {
+	// 	try {
+	// 		const res = await fetch(`${API_BASE_URL}/api/alerts/${alertId}/acknowledge`, {
+	// 			method: 'PATCH',
+	// 			headers: authHeader,
+	// 		});
+	// 		if (!res.ok) {
+	// 			const data = await res.json();
+	// 			Alert.alert('Error', data.error || 'Failed to update alert');
+	// 			return;
+	// 		}
+	// 		setAlerts((cur) => cur.map((a) => a.id === alertId ? { ...a, isRead: !a.isRead } : a));
+	// 	} catch {
+	// 		Alert.alert('Error', 'Unable to connect to server.');
+	// 	}
+	// }, [user?.token]);
 
-	const handleDelete = useCallback((alertId) => {
-		Alert.alert('Delete Alert', 'Remove this alert permanently?', [
-			{ text: 'Cancel', style: 'cancel' },
-			{
-				text: 'Delete',
-				style: 'destructive',
-				onPress: async () => {
-					try {
-						const res = await fetch(`${API_BASE_URL}/api/alerts/${alertId}`, {
-							method: 'DELETE',
-							headers: authHeader,
-						});
-						if (!res.ok) {
-							const data = await res.json();
-							Alert.alert('Error', data.error || 'Failed to delete alert');
-							return;
-						}
-						setAlerts((cur) => cur.filter((a) => a.id !== alertId));
-					} catch {
-						Alert.alert('Error', 'Unable to connect to server.');
-					}
-				},
-			},
-		]);
-	}, [user?.token]);
+	// const handleDelete = useCallback((alertId) => {
+	// 	Alert.alert('Delete Alert', 'Remove this alert permanently?', [
+	// 		{ text: 'Cancel', style: 'cancel' },
+	// 		{
+	// 			text: 'Delete',
+	// 			style: 'destructive',
+	// 			onPress: async () => {
+	// 				try {
+	// 					const res = await fetch(`${API_BASE_URL}/api/alerts/${alertId}`, {
+	// 						method: 'DELETE',
+	// 						headers: authHeader,
+	// 					});
+	// 					if (!res.ok) {
+	// 						const data = await res.json();
+	// 						Alert.alert('Error', data.error || 'Failed to delete alert');
+	// 						return;
+	// 					}
+	// 					setAlerts((cur) => cur.filter((a) => a.id !== alertId));
+	// 				} catch {
+	// 					Alert.alert('Error', 'Unable to connect to server.');
+	// 				}
+	// 			},
+	// 		},
+	// 	]);
+	// }, [user?.token]);
 
 	const renderItem = ({ item, index }) => {
 		const isEven = index % 2 === 0;
@@ -147,15 +147,12 @@ export default function AdminAlertsTab() {
 					<Text style={styles.timeText}>{formatDateTime(item.time)}</Text>
 				</View>
 
-				<View style={styles.colTitle}>
+				<View style={styles.colAck}>
 					<View style={styles.titleRow}>
 						<View style={[styles.severityDot, !item.isRead && styles.severityDotActive]} />
 						<Text style={styles.titleText} numberOfLines={2}>{item.title}</Text>
 					</View>
-				</View>
-
-				<View style={styles.colAck}>
-					<TouchableOpacity
+					{/* <TouchableOpacity
 						style={[styles.ackBadge, item.isRead ? styles.ackBadgeRead : styles.ackBadgeUnread]}
 						onPress={() => handleAcknowledge(item.id)}
 					>
@@ -170,7 +167,7 @@ export default function AdminAlertsTab() {
 					</TouchableOpacity>
 					<TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item.id)}>
 						<Ionicons name="trash-outline" size={14} color="#e53935" />
-					</TouchableOpacity>
+					</TouchableOpacity> */}
 				</View>
 			</View>
 		);
@@ -266,8 +263,7 @@ export default function AdminAlertsTab() {
 					<View style={styles.tableHeader}>
 						<Text style={[styles.headerCell, styles.hRoomId]}>Room</Text>
 						<Text style={[styles.headerCell, styles.hTime]}>Time</Text>
-						<Text style={[styles.headerCell, styles.hTitle]}>Warning Title</Text>
-						<Text style={[styles.headerCell, styles.hAck]}>Acknowledge</Text>
+						<Text style={[styles.headerCell, styles.hAck]}>Warning Title</Text>
 					</View>
 
 					{loading ? (
@@ -423,8 +419,7 @@ const styles = StyleSheet.create({
 	},
 	hRoomId: { flex: 0.7, textAlign: 'center' },
 	hTime: { flex: 1.3, textAlign: 'center' },
-	hTitle: { flex: 2.8 },
-	hAck: { flex: 1.2, textAlign: 'center' },
+	hAck: { flex: 4 },
 	row: {
 		flexDirection: 'row',
 		alignItems: 'center',
@@ -437,8 +432,7 @@ const styles = StyleSheet.create({
 	rowEven: { backgroundColor: '#fafbfc' },
 	colRoomId: { flex: 0.7, alignItems: 'center' },
 	colTime: { flex: 1.3, alignItems: 'center' },
-	colTitle: { flex: 2.8 },
-	colAck: { flex: 1.2, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 },
+	colAck: { flex: 4 },
 	roomIdBadge: {
 		backgroundColor: '#f3f4f6',
 		borderRadius: 8,
