@@ -12,6 +12,8 @@ import {
 	Alert,
 	Platform,
 	useWindowDimensions,
+	Modal,
+	ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
@@ -34,6 +36,13 @@ export default function AdminWaterpumpTab() {
 	const [sortBy, setSortBy] = useState('id');
 	const [showSortMenu, setShowSortMenu] = useState(false);
 	const [activeOnly, setActiveOnly] = useState(false);
+
+	const [modalVisible, setModalVisible] = useState(false);
+	const [roomsWithout, setRoomsWithout] = useState([]);
+	const [loadingRooms, setLoadingRooms] = useState(false);
+	const [selectedRoomId, setSelectedRoomId] = useState(null);
+	const [submitting, setSubmitting] = useState(false);
+	const [formError, setFormError] = useState('');
 
 	const authHeader = { Authorization: `Bearer ${user?.token}` };
 
@@ -65,6 +74,44 @@ export default function AdminWaterpumpTab() {
 		await fetchActuators();
 		setRefreshing(false);
 	}, [fetchActuators]);
+
+	const openAddModal = async () => {
+		setSelectedRoomId(null);
+		setFormError('');
+		setModalVisible(true);
+		setLoadingRooms(true);
+		try {
+			const res = await fetch(`${API_BASE_URL}/api/actuators/rooms-without`, { headers: authHeader });
+			const data = await res.json();
+			if (!res.ok) throw new Error(data.error || 'Failed to fetch rooms');
+			setRoomsWithout(data.rooms);
+		} catch (err) {
+			setFormError(err.message);
+		} finally {
+			setLoadingRooms(false);
+		}
+	};
+
+	const handleAddWaterpump = async () => {
+		if (!selectedRoomId) { setFormError('Please select a room.'); return; }
+		setSubmitting(true);
+		setFormError('');
+		try {
+			const res = await fetch(`${API_BASE_URL}/api/actuators`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', ...authHeader },
+				body: JSON.stringify({ room_id: selectedRoomId }),
+			});
+			const data = await res.json();
+			if (!res.ok) { setFormError(data.error || 'Failed to add waterpump'); return; }
+			setModalVisible(false);
+			await fetchActuators();
+		} catch {
+			setFormError('Unable to connect to server.');
+		} finally {
+			setSubmitting(false);
+		}
+	};
 
 	const total = actuators.length;
 	const waterpumpOnCount = actuators.filter((a) => a.waterpumpEnabled).length;
@@ -132,6 +179,72 @@ export default function AdminWaterpumpTab() {
 	return (
 		<SafeAreaView style={styles.container}>
 			<StatusBar barStyle="light-content" />
+
+			<Modal visible={modalVisible} animationType="slide" transparent onRequestClose={() => setModalVisible(false)}>
+				<View style={styles.modalOverlay}>
+					<View style={[styles.modalCard, isWide && styles.modalCardWeb]}>
+						<View style={styles.modalHeader}>
+							<Text style={styles.modalTitle}>Add Waterpump</Text>
+							<TouchableOpacity onPress={() => setModalVisible(false)}>
+								<Ionicons name="close" size={22} color="#374151" />
+							</TouchableOpacity>
+						</View>
+
+						<ScrollView keyboardShouldPersistTaps="handled">
+							<Text style={styles.fieldLabel}>Select Room</Text>
+
+							{loadingRooms ? (
+								<ActivityIndicator size="small" color="#e53935" style={{ marginVertical: 20 }} />
+							) : roomsWithout.length === 0 ? (
+								<View style={styles.noRoomsWrap}>
+									<Ionicons name="checkmark-circle-outline" size={24} color="#16a34a" />
+									<Text style={styles.noRoomsText}>All rooms already have a waterpump.</Text>
+								</View>
+							) : (
+								<View style={styles.roomList}>
+									{roomsWithout.map((room) => (
+										<TouchableOpacity
+											key={room.room_id}
+											style={[styles.roomOption, selectedRoomId === room.room_id && styles.roomOptionSelected]}
+											onPress={() => setSelectedRoomId(room.room_id)}
+										>
+											<View style={styles.roomOptionLeft}>
+												<Ionicons name="home-outline" size={16} color={selectedRoomId === room.room_id ? '#e53935' : '#6b7280'} />
+												<Text style={[styles.roomOptionText, selectedRoomId === room.room_id && styles.roomOptionTextSelected]}>
+													{room.name}
+												</Text>
+											</View>
+											{selectedRoomId === room.room_id && (
+												<Ionicons name="checkmark-circle" size={18} color="#e53935" />
+											)}
+										</TouchableOpacity>
+									))}
+								</View>
+							)}
+
+							{formError ? (
+								<View style={styles.formErrorWrap}>
+									<Ionicons name="alert-circle-outline" size={14} color="#dc2626" />
+									<Text style={styles.formErrorText}>{formError}</Text>
+								</View>
+							) : null}
+
+							{roomsWithout.length > 0 && (
+								<TouchableOpacity
+									style={[styles.submitBtn, (submitting || !selectedRoomId) && styles.submitBtnDisabled]}
+									onPress={handleAddWaterpump}
+									disabled={submitting || !selectedRoomId}
+								>
+									{submitting
+										? <ActivityIndicator color="#fff" size="small" />
+										: <Text style={styles.submitBtnText}>Add Waterpump</Text>
+									}
+								</TouchableOpacity>
+							)}
+						</ScrollView>
+					</View>
+				</View>
+			</Modal>
 
 			<View style={[styles.headerTop, isWide && styles.headerTopWeb]}>
 				<Text style={styles.headerTitle}>Waterpump Management</Text>
@@ -209,6 +322,11 @@ export default function AdminWaterpumpTab() {
 								</View>
 							)}
 						</View>
+
+						<TouchableOpacity style={styles.addBtn} onPress={openAddModal}>
+							<Ionicons name="add-outline" size={16} color="#fff" />
+							<Text style={styles.addText}>Add Waterpump</Text>
+						</TouchableOpacity>
 					</View>
 				</View>
 
@@ -335,4 +453,25 @@ const styles = StyleSheet.create({
 	empty: { textAlign: 'center', color: '#9ca3af', fontSize: 14 },
 	headerTopWeb: { paddingHorizontal: 32 },
 	contentWeb: { paddingHorizontal: 32, maxWidth: 1200, alignSelf: 'center', width: '100%' },
+	addBtn: { backgroundColor: '#e53935', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 6 },
+	addText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+	modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+	modalCard: { backgroundColor: '#fff', borderRadius: 16, padding: 24, width: '100%', maxHeight: '90%', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 20, shadowOffset: { width: 0, height: 6 }, elevation: 8 },
+	modalCardWeb: { maxWidth: 440 },
+	modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+	modalTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
+	fieldLabel: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 10 },
+	roomList: { gap: 8 },
+	roomOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 12, borderRadius: 10, borderWidth: 1.5, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
+	roomOptionSelected: { borderColor: '#e53935', backgroundColor: '#fff1f2' },
+	roomOptionLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+	roomOptionText: { fontSize: 14, fontWeight: '500', color: '#374151' },
+	roomOptionTextSelected: { color: '#e53935', fontWeight: '700' },
+	noRoomsWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 16 },
+	noRoomsText: { fontSize: 14, color: '#15803d', fontWeight: '500' },
+	formErrorWrap: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12 },
+	formErrorText: { color: '#dc2626', fontSize: 13, flex: 1 },
+	submitBtn: { backgroundColor: '#e53935', borderRadius: 10, paddingVertical: 14, alignItems: 'center', justifyContent: 'center', marginTop: 20, minHeight: 50 },
+	submitBtnDisabled: { backgroundColor: '#f87171' },
+	submitBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 });
