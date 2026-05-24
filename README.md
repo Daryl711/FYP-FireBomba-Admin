@@ -30,7 +30,7 @@ Please create an .env file that contains the following:
 ```EXPO_PUBLIC_API_URL=http://localhost:3000```
 
 #### To run:
-``` npm run web```
+``` npm run dev```
 
 
 ### Backend:
