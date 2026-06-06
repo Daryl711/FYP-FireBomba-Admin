@@ -41,7 +41,7 @@ VALUES (
         1,
         1,
         'admin@gmail.com',
-        '$2a$10$Ws5hhCulP8GlpEI3Lwx0M.hbpjfxAJ0EFiVhCGcSRk.V8Ma9M8uTS',
+        '$2a$10$/s91IByyiAR/ubariybq.O07AnEAFPDpBw/NLmHObljmyxf8BXyNm',
         'Admin User',
         'Admin',
         NOW()
@@ -166,7 +166,20 @@ CREATE TABLE IF NOT EXISTS SensorAggregates (
     FOREIGN KEY (room_id) REFERENCES Rooms(room_id) ON DELETE CASCADE
 );
 
--- 10. Admin Sensor Table
+-- 10. Audit Log Table
+CREATE TABLE IF NOT EXISTS AuditLog (
+    log_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT,
+    performed_by VARCHAR(50),
+    action VARCHAR(50) NOT NULL,
+    sensor_id INT,
+    sensor_type VARCHAR(50),
+    room_name VARCHAR(50),
+    details VARCHAR(255),
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 11. Admin Sensor Table
 CREATE TABLE IF NOT EXISTS AdminSensor (
     sensor_id INT PRIMARY KEY AUTO_INCREMENT,
     room_id INT NOT NULL,

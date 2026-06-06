@@ -12,6 +12,17 @@ exports.getAllSensors = async () => {
     return result;
 };
 
+exports.getSensorById = async (sensorId) => {
+    const sql = `
+        SELECT s.sensor_id, s.sensor_type, s.status, r.name AS room_name
+        FROM AdminSensor s
+        JOIN Rooms r ON s.room_id = r.room_id
+        WHERE s.sensor_id = ?
+    `;
+    const [rows] = await db.query(sql, [sensorId]);
+    return rows[0] || null;
+};
+
 exports.toggleSensorStatus = async (sensorId) => {
     const sql = "UPDATE AdminSensor SET status = NOT status, last_updated = NOW() WHERE sensor_id = ?";
     const [result] = await db.query(sql, [sensorId]);
