@@ -28,6 +28,10 @@ CREATE TABLE IF NOT EXISTS Users(
     FOREIGN KEY (room_id) REFERENCES Rooms(room_id) ON DELETE CASCADE
 );
 -- Insert Users Data
+-- NOTE: original passwords unknown, all regenerated:
+--   admin@gmail.com -> Admin123!
+--   test@gmail.com  -> Test123!
+--   test2@gmail.com -> Test2123!
 INSERT IGNORE INTO Users (
         user_id,
         room_id,
@@ -41,7 +45,7 @@ VALUES (
         1,
         1,
         'admin@gmail.com',
-        '$2a$10$/s91IByyiAR/ubariybq.O07AnEAFPDpBw/NLmHObljmyxf8BXyNm',
+        '$2a$10$ErgXJL1aT.A9A1EK54fMNOtfL3wMRh4ngEWkq9Pdu7mru7oz/viZq',
         'Admin User',
         'Admin',
         NOW()
@@ -50,7 +54,7 @@ VALUES (
         2,
         1,
         'test@gmail.com',
-        '$2a$10$fkfQZ9YHaotEPPlZ6jkOc.XaV895.bNAMY2DEDLbVMB8kFa0FXjjm',
+        '$2a$10$Nqi6BhvHIDCKaR4GfssZyOlmSBv3BPB70CdSo9BEj2Qi1j.aDfGri',
         'Test User',
         'User',
         NOW()
@@ -59,7 +63,7 @@ VALUES (
         3,
         2,
         'test2@gmail.com',
-        '$2a$10$WY6bPepmZ3oPQ2lJcyWs1e4LLJz76yEpJmrsMUwr4BsxJ7LeeTa4m',
+        '$2a$10$sWesFoary2aSeXym63i.eeu7oDMlPlivAbirmGa4ht9jgergNsGH.',
         'Test User 2',
         'User',
         NOW()
@@ -205,4 +209,17 @@ VALUES
     (12, 3, 'Humidity', TRUE, NOW()),
     (13, 3, 'Smoke', FALSE, NOW()),
     (14, 3, 'CO', TRUE, NOW()),
-    (15, 3, 'Flame', TRUE, NOW());      
+    (15, 3, 'Flame', TRUE, NOW());
+
+-- 12. User notification table (since each notification can be seen by multiple users)
+CREATE TABLE IF NOT EXISTS UserNotification
+(
+    user_notification_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    alert_id INT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    is_hidden BOOLEAN DEFAULT FALSE,
+    last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (alert_id) REFERENCES AlertNotification(alert_id) ON DELETE CASCADE
+);
