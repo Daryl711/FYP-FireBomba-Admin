@@ -8,6 +8,7 @@ import Sensors from './pages/Sensors'
 import Alerts from './pages/Alerts'
 import Waterpump from './pages/Waterpump'
 import Profile from './pages/Profile'
+import AuditLog from './pages/AuditLog'
 
 function ProtectedRoute({ children }) {
   const { user } = useApp()
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="alerts" element={<Alerts />} />
           <Route path="waterpump" element={<Waterpump />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="audit-log" element={<AuditLog />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

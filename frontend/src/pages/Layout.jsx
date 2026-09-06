@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { Flame, Users, Home, Activity, Bell, Droplets, User, LogOut } from 'lucide-react'
+import { Flame, Users, Home, Activity, Bell, Droplets, User, LogOut, ClipboardList } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 
 const NAV_ITEMS = [
@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { to: '/sensors',   label: 'Sensor Status',Icon: Activity },
   { to: '/alerts',    label: 'Alert History',Icon: Bell },
   { to: '/waterpump', label: 'Waterpump',    Icon: Droplets },
+  { to: '/audit-log', label: 'Audit Log',    Icon: ClipboardList },
   { to: '/profile',   label: 'Profile',      Icon: User },
 ]
 
