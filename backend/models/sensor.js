@@ -3,9 +3,10 @@ const db = require("../config/database");
 exports.getAllSensors = async () => {
     const sql = `
         SELECT s.sensor_id, s.room_id, s.sensor_type, s.status, s.last_updated,
-               r.name AS room_name
+               CASE WHEN r.space_type = 'BILIK_ROOM' THEN CONCAT(b.bilik_number, ' - ', r.name) ELSE r.name END AS room_name
         FROM AdminSensor s
         JOIN Rooms r ON s.room_id = r.room_id
+        LEFT JOIN Bilik b ON r.bilik_id = b.bilik_id
         ORDER BY s.room_id ASC, s.sensor_type ASC
     `;
     const [result] = await db.query(sql);

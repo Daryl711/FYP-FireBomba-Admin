@@ -3,9 +3,10 @@ const db = require("../config/database");
 exports.getAllActuators = async () => {
     const sql = `
         SELECT a.actuator_id, a.room_id, a.waterpump_enabled, a.activated_status, a.last_updated,
-               r.name AS room_name
+               CASE WHEN r.space_type = 'BILIK_ROOM' THEN CONCAT(b.bilik_number, ' - ', r.name) ELSE r.name END AS room_name
         FROM Actuators a
         JOIN Rooms r ON a.room_id = r.room_id
+        LEFT JOIN Bilik b ON r.bilik_id = b.bilik_id
         ORDER BY a.actuator_id ASC
     `;
     const [result] = await db.query(sql);
@@ -14,8 +15,10 @@ exports.getAllActuators = async () => {
 
 exports.getRoomsWithoutActuator = async () => {
     const sql = `
-        SELECT r.room_id, r.name
+        SELECT r.room_id,
+               CASE WHEN r.space_type = 'BILIK_ROOM' THEN CONCAT(b.bilik_number, ' - ', r.name) ELSE r.name END AS name
         FROM Rooms r
+        LEFT JOIN Bilik b ON r.bilik_id = b.bilik_id
         LEFT JOIN Actuators a ON r.room_id = a.room_id
         WHERE a.actuator_id IS NULL OR a.waterpump_enabled = FALSE
         ORDER BY r.name ASC
