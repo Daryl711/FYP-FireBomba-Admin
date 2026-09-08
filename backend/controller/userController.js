@@ -42,3 +42,19 @@ exports.addUserByAdmin = async (req, res) => {
         console.error(error);
     }
 };
+
+exports.assignBilik = async (req, res) => {
+    const { id } = req.params;
+    const { bilikId } = req.body;
+    try {
+        const affected = await AdminUser.assignBilik(id, bilikId ?? null);
+        if (!affected) return res.status(404).json({ error: "User not found" });
+        res.json({ message: "User assigned to Bilik successfully" });
+    } catch (error) {
+        if (error.code === 'ER_NO_REFERENCED_ROW_2' || error.code === 'ER_NO_REFERENCED_ROW') {
+            return res.status(400).json({ error: "Bilik not found" });
+        }
+        res.status(500).json({ error: "Server error" });
+        console.error(error);
+    }
+};

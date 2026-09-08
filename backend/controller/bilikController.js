@@ -47,3 +47,14 @@ exports.deleteBilik = async (req, res) => {
         console.error(error);
     }
 };
+
+exports.getBilikUsers = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const users = await Bilik.getUsersByBilik(id);
+        res.json({ users });
+    } catch (error) {
+        res.status(500).json({ error: "Server error" });
+        console.error(error);
+    }
+};

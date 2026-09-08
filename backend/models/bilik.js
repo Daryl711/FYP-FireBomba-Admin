@@ -3,13 +3,21 @@ const db = require("../config/database");
 exports.getAllBiliks = async () => {
     const sql = `
         SELECT b.bilik_id, b.bilik_number, b.household_name, b.created_at,
-               COUNT(r.room_id) AS room_count
+               COUNT(DISTINCT r.room_id) AS room_count,
+               COUNT(DISTINCT u.user_id) AS resident_count
         FROM Bilik b
         LEFT JOIN Rooms r ON r.bilik_id = b.bilik_id
+        LEFT JOIN Users u ON u.bilik_id = b.bilik_id
         GROUP BY b.bilik_id
         ORDER BY b.bilik_number ASC
     `;
     const [result] = await db.query(sql);
+    return result;
+};
+
+exports.getUsersByBilik = async (bilikId) => {
+    const sql = "SELECT user_id, full_name, email, role, created_at FROM Users WHERE bilik_id = ? ORDER BY full_name ASC";
+    const [result] = await db.query(sql, [bilikId]);
     return result;
 };
 

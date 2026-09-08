@@ -6,5 +6,6 @@ const authMiddleware = require('../middleware/auth');
 userRouter.get('/users', authMiddleware, userController.getUsers);
 userRouter.post('/admin/add-user', authMiddleware, userController.addUserByAdmin);
 userRouter.delete('/users/:id', authMiddleware, userController.deleteUser);
+userRouter.put('/users/:id/bilik', authMiddleware, userController.assignBilik);
 
 module.exports = userRouter;
