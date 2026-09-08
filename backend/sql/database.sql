@@ -197,7 +197,9 @@ CREATE TABLE IF NOT EXISTS SensorAggregates (
     FOREIGN KEY (room_id) REFERENCES Rooms(room_id) ON DELETE CASCADE
 );
 
--- 11. Audit Log Table
+<<<<<<< HEAD
+=======
+-- 10. Audit Log Table
 CREATE TABLE IF NOT EXISTS AuditLog (
     log_id INT PRIMARY KEY AUTO_INCREMENT,
     user_id INT,
@@ -210,7 +212,8 @@ CREATE TABLE IF NOT EXISTS AuditLog (
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- 12. Admin Sensor Table
+>>>>>>> d662ebd5dcdd36ac5083e42d8e404411786a4027
+-- 11. Admin Sensor Table
 CREATE TABLE IF NOT EXISTS AdminSensor (
     sensor_id INT PRIMARY KEY AUTO_INCREMENT,
     room_id INT NOT NULL,
@@ -238,7 +241,7 @@ VALUES
     (14, 3, 'CO', TRUE, NOW()),
     (15, 3, 'Flame', TRUE, NOW());
 
--- 13. User notification table (since each notification can be seen by multiple users)
+-- 12. User notification table (since each notification can be seen by multiple users)
 CREATE TABLE IF NOT EXISTS UserNotification
 (
     user_notification_id INT PRIMARY KEY AUTO_INCREMENT,
