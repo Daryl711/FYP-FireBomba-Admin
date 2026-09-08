@@ -200,17 +200,17 @@ export default function Rooms() {
       if (!res.ok) { setRoomFormError(data.error || 'Failed to save room'); return }
       setRoomModalOpen(false)
       await fetchRooms()
-    } catch { setRoomFormError('Unable to connect to server.') }
+    } catch { setRoomFormError('Error: Unable to connect to server.') }
     finally { setSubmittingRoom(false) }
   }
-
+``
   const handleDeleteRoom = async (roomId, roomName) => {
     if (!window.confirm(`Delete ${roomName}? This cannot be undone.`)) return
     try {
       const res = await fetch(`${API_BASE_URL}/api/rooms/${roomId}`, { method: 'DELETE', headers: authHeader })
       if (!res.ok) { alert('Failed to delete room'); return }
       setRooms(cur => cur.filter(r => r.id !== roomId))
-    } catch { alert('Unable to connect to server.') }
+    } catch { alert('Error: Unable to connect to server.') }
   }
 
   // --- Bilik modal ---
