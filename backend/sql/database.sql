@@ -41,12 +41,14 @@ VALUES (1, "Bedroom", "0", NOW(), 1, 'BILIK_ROOM', 1),
 CREATE TABLE IF NOT EXISTS Users(
     user_id INT PRIMARY KEY AUTO_INCREMENT,
     room_id INT NOT NULL,
+    bilik_id INT NULL,
     email VARCHAR(50) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     full_name VARCHAR(50) NOT NULL,
     role VARCHAR(20) NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (room_id) REFERENCES Rooms(room_id) ON DELETE CASCADE
+    FOREIGN KEY (room_id) REFERENCES Rooms(room_id) ON DELETE CASCADE,
+    FOREIGN KEY (bilik_id) REFERENCES Bilik(bilik_id) ON DELETE SET NULL
 );
 -- Insert Users Data
 -- NOTE: original passwords unknown, all regenerated:
@@ -56,6 +58,7 @@ CREATE TABLE IF NOT EXISTS Users(
 INSERT IGNORE INTO Users (
         user_id,
         room_id,
+        bilik_id,
         email,
         password,
         full_name,
@@ -63,6 +66,7 @@ INSERT IGNORE INTO Users (
         created_at
     )
 VALUES (
+        1,
         1,
         1,
         'admin@gmail.com',
@@ -74,6 +78,7 @@ VALUES (
     (
         2,
         1,
+        1,
         'test@gmail.com',
         '$2a$10$Nqi6BhvHIDCKaR4GfssZyOlmSBv3BPB70CdSo9BEj2Qi1j.aDfGri',
         'Test User',
@@ -82,6 +87,7 @@ VALUES (
     ),
     (
         3,
+        2,
         2,
         'test2@gmail.com',
         '$2a$10$sWesFoary2aSeXym63i.eeu7oDMlPlivAbirmGa4ht9jgergNsGH.',
