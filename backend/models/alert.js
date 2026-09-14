@@ -1,19 +1,21 @@
-const db = require("../config/database");
+const db = require("../config/supabase");
 
 exports.getAllAlerts = async () => {
-    const sql = "SELECT alert_id, room_id, timestamp, warning_title, is_read FROM AlertNotification ORDER BY timestamp DESC";
-    const [result] = await db.query(sql);
-    return result;
+  const sql =
+    "SELECT alert_id, room_id, timestamp, warning_title, is_read FROM AlertNotification ORDER BY timestamp DESC";
+  const [result] = await db.query(sql);
+  return result;
 };
 
 exports.acknowledgeAlert = async (alertId) => {
-    const sql = "UPDATE AlertNotification SET is_read = NOT is_read WHERE alert_id = ?";
-    const [result] = await db.query(sql, [alertId]);
-    return result.affectedRows;
+  const sql =
+    "UPDATE AlertNotification SET is_read = NOT is_read WHERE alert_id = ?";
+  const [result] = await db.query(sql, [alertId]);
+  return result.affectedRows;
 };
 
 exports.deleteAlert = async (alertId) => {
-    const sql = "DELETE FROM AlertNotification WHERE alert_id = ?";
-    const [result] = await db.query(sql, [alertId]);
-    return result.affectedRows;
+  const sql = "DELETE FROM AlertNotification WHERE alert_id = ?";
+  const [result] = await db.query(sql, [alertId]);
+  return result.affectedRows;
 };
