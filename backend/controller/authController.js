@@ -82,7 +82,7 @@ exports.login = async (req, res) => {
       .select("full_name, room_id")
       .eq("user_id", user.id)
       .single();
-      
+
 
     if (profileError || !profile) {
       return res.status(500).json({
@@ -194,6 +194,4 @@ exports.login = async (req, res) => {
 //   }
 // };
 
-exports.logout = (req, res) => {
-  res.json({ message: "Logged out successfully" });
-};
+

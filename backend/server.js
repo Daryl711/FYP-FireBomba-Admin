@@ -14,7 +14,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/api/auth', authRouter);
-app.use('/api/auth', userRouter);
+app.use('/api/user', userRouter);
 app.use('/api', alertRouter);
 app.use('/api', roomRouter);
 app.use('/api', sensorRouter);

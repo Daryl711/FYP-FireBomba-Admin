@@ -49,7 +49,7 @@ export default function AdminLogin({ navigation }) {
         return;
       }
 
-      setUser({ ...data.user, token: data.token });
+      setUser({ ...data.user, token: data.session.access_token });
       navigation.replace("Admin");
     } catch (err) {
       setError(

@@ -150,11 +150,11 @@ export default function AdminUserScreen() {
 		}
 		setSubmitting(true);
 		try {
-			const res = await fetch(`${API_BASE_URL}/api/auth/admin/add-user`, {
+			const res = await fetch(`${API_BASE_URL}/api/user/add-user`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', ...authHeader },
 				body: JSON.stringify({
-					fullName: form.fullName.trim(),
+					full_name: form.fullName.trim(),
 					email: form.email.trim().toLowerCase(),
 					password: form.password,
 					role: form.role,
