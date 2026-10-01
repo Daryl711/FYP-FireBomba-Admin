@@ -16,7 +16,7 @@ app.use(express.json());
 app.use('/api/auth', authRouter);
 app.use('/api/user', userRouter);
 app.use('/api', alertRouter);
-app.use('/api', roomRouter);
+app.use('/api/rooms', roomRouter);
 app.use('/api', sensorRouter);
 app.use('/api', actuatorRouter);
 

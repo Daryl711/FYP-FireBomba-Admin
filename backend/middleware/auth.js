@@ -1,7 +1,7 @@
 const supabase = require('../config/supabase.js');
 
 
-const requireAdmin = async (req, res, next) => {
+const requireToken = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
 
@@ -35,4 +35,4 @@ const requireAdmin = async (req, res, next) => {
 };
 
 
-module.exports = requireAdmin;
+module.exports = requireToken;

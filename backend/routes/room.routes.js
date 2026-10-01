@@ -1,11 +1,11 @@
-const express = require('express');
+const express = require("express");
 const roomRouter = express.Router();
-const roomController = require('../controller/roomController');
-const authMiddleware = require('../middleware/auth');
+const roomController = require("../controller/roomController");
+const requireToken = require("../middleware/auth");
 
-roomRouter.get('/rooms', authMiddleware, roomController.getRooms);
-roomRouter.post('/rooms', authMiddleware, roomController.addRoom);
-roomRouter.put('/rooms/:id', authMiddleware, roomController.updateRoom);
-roomRouter.delete('/rooms/:id', authMiddleware, roomController.deleteRoom);
+roomRouter.get("/", requireToken, roomController.getRooms);
+roomRouter.post("/", requireToken, roomController.addRoom);
+roomRouter.put("/:id", requireToken, roomController.updateRoom);
+roomRouter.delete("/:id", requireToken, roomController.deleteRoom);
 
 module.exports = roomRouter;

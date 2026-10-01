@@ -61,7 +61,7 @@ export default function AdminUserScreen() {
 
 	const fetchUsers = useCallback(async () => {
 		try {
-			const res = await fetch(`${API_BASE_URL}/api/auth/users`, {
+			const res = await fetch(`${API_BASE_URL}/api/user`, {
 				headers: authHeader,
 			});
 			const data = await res.json();

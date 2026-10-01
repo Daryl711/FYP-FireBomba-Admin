@@ -1,28 +1,63 @@
-const db = require("../config/supabase");
+const supabase = require("../config/supabase");
 
 exports.getAllRooms = async () => {
-  const sql =
-    "SELECT room_id, name, status, last_updated, camera_enabled FROM Rooms ORDER BY name ASC";
-  const [result] = await db.query(sql);
-  return result;
+  const { data, error } = await supabase
+    .from("rooms")
+    .select("room_id, name, status, last_updated, camera_enabled")
+    .order("name", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
 };
 
 exports.addRoom = async (name, status, cameraEnabled) => {
-  const sql =
-    "INSERT INTO Rooms (name, status, camera_enabled, last_updated) VALUES (?, ?, ?, NOW())";
-  const [result] = await db.query(sql, [name, status, cameraEnabled]);
-  return result.insertId;
+  const { data, error } = await supabase
+    .from("rooms")
+    .insert({
+      name,
+      status,
+      camera_enabled: cameraEnabled,
+      last_updated: new Date().toISOString(),
+    })
+    .select("room_id")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data.room_id;
 };
 
 exports.updateRoom = async (roomId, name, status, cameraEnabled) => {
-  const sql =
-    "UPDATE Rooms SET name = ?, status = ?, camera_enabled = ?, last_updated = NOW() WHERE room_id = ?";
-  const [result] = await db.query(sql, [name, status, cameraEnabled, roomId]);
-  return result.affectedRows;
+  const { data, error } = await supabase
+    .from("rooms")
+    .update({
+      name,
+      status,
+      camera_enabled: cameraEnabled,
+      last_updated: new Date().toISOString(),
+    })
+    .eq("room_id", roomId)
+    .select("room_id")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data.room_id;
 };
 
 exports.deleteRoom = async (roomId) => {
-  const sql = "DELETE FROM Rooms WHERE room_id = ?";
-  const [result] = await db.query(sql, [roomId]);
-  return result.affectedRows;
+  const { error } = await supabase.from("rooms").delete().eq("room_id", roomId);
+
+  if (error) {
+    throw error;
+  }
+
+  return true;
 };
