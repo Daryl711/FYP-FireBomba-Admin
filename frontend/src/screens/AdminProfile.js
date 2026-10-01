@@ -51,13 +51,13 @@ export default function AdminProfile() {
   const initials = getInitials(displayName);
 
   const handleLogout = () => {
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+    Alert.alert("Log Out", "Are you sure you want to log out?", [
       {
         text: "Cancel",
         style: "cancel",
       },
       {
-        text: "Sign Out",
+        text: "Log Out",
         style: "destructive",
         onPress: async () => {
           const { error } = await supabase.auth.signOut();
