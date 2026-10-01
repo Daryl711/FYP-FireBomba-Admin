@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const supabase = require("../config/supabase");
+const createAuthClient = require("../config/supabaseAuth");
 
 exports.signup = async (req, res) => {
   const { fullName, email, password } = req.body;
@@ -36,7 +37,7 @@ exports.login = async (req, res) => {
     }
 
     // 1. Authenticate with Supabase Auth
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await createAuthClient().auth.signInWithPassword({
       email,
       password,
     });
@@ -49,7 +50,6 @@ exports.login = async (req, res) => {
 
     const { user, session } = data;
 
-
     // 2. Check user's role
     const { data: roleData, error: roleError } = await supabase
       .from("user_roles")
@@ -57,8 +57,6 @@ exports.login = async (req, res) => {
       .eq("user_id", user.id)
       .single();
 
-
-    console.log(roleData);
     if (roleError || !roleData) {
       return res.status(403).json({
         error: "Access denied",
@@ -75,10 +73,9 @@ exports.login = async (req, res) => {
     // 4. Get application profile
     const { data: profile, error: profileError } = await supabase
       .from("users")
-      .select("full_name, room_id")
+      .select("full_name")
       .eq("user_id", user.id)
       .single();
-
 
     if (profileError || !profile) {
       return res.status(500).json({
@@ -97,7 +94,6 @@ exports.login = async (req, res) => {
 
       profile: {
         full_name: profile.full_name,
-        room_id: profile.room_id,
       },
 
       role: roleData.role,
@@ -189,5 +185,3 @@ exports.login = async (req, res) => {
 //     console.error(error);
 //   }
 // };
-
-
