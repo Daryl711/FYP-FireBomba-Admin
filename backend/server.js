@@ -1,11 +1,11 @@
-const express = require('express');
-const cors = require('cors');
-const authRouter = require('./routes/auth.routes');
-const userRouter = require('./routes/user.routes');
-const alertRouter = require('./routes/alert.routes');
-const roomRouter = require('./routes/room.routes');
-const sensorRouter = require('./routes/sensor.routes');
-const actuatorRouter = require('./routes/actuator.routes');
+const express = require("express");
+const cors = require("cors");
+const authRouter = require("./routes/auth.routes");
+const userRouter = require("./routes/user.routes");
+const alertRouter = require("./routes/alert.routes");
+const roomRouter = require("./routes/room.routes");
+const sensorRouter = require("./routes/sensor.routes");
+const actuatorRouter = require("./routes/actuator.routes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -13,13 +13,17 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-app.use('/api/auth', authRouter);
-app.use('/api/user', userRouter);
-app.use('/api', alertRouter);
-app.use('/api/rooms', roomRouter);
-app.use('/api', sensorRouter);
-app.use('/api', actuatorRouter);
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
+app.use("/api/auth", authRouter);
+app.use("/api/user", userRouter);
+app.use("/api", alertRouter);
+app.use("/api/rooms", roomRouter);
+app.use("/api", sensorRouter);
+app.use("/api", actuatorRouter);
 
 app.listen(PORT, () => {
-    console.log(`FireBomba backend running on port ${PORT}`);
+  console.log(`FireBomba backend running on port ${PORT}`);
 });
