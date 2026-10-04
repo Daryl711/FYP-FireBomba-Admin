@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AdminLogin from "../screens/AdminLogin";
 import AdminUsersTab from "../screens/AdminUsersTab";
 import AdminRoomsTab from "../screens/AdminRoomsTab";
+import AdminBilikTab from "../screens/AdminBilikTab";
 import AdminAlertsTab from "../screens/AdminAlertsTab";
 import AdminSensorTab from "../screens/AdminSensorTab";
 import AdminWaterpumpTab from "../screens/AdminWaterpumpTab";
@@ -27,18 +28,64 @@ const RootStack = createNativeStackNavigator();
 const WEB_BREAKPOINT = 768;
 
 const ADMIN_NAV_ITEMS = [
-  { key: "AdminUsers",   label: "Users",   icon: "people-outline",        activeIcon: "people" },
-  { key: "AdminRooms",   label: "Rooms",   icon: "home-outline",          activeIcon: "home" },
-  { key: "AdminSensors", label: "Sensors", icon: "pulse-outline",         activeIcon: "pulse" },
-  { key: "AdminAlerts",  label: "Alerts",  icon: "notifications-outline", activeIcon: "notifications" },
-  { key: "AdminWaterpump", label: "Pump",  icon: "water-outline",         activeIcon: "water" },
-  { key: "AdminProfile", label: "Profile", icon: "person-outline",        activeIcon: "person" },
+  {
+    key: "AdminUsers",
+    label: "Users",
+    icon: "people-outline",
+    activeIcon: "people",
+  },
+  {
+    key: "AdminBilik",
+    label: "Bilik",
+    icon: "business-outline",
+    activeIcon: "business",
+  },
+  {
+    key: "AdminRooms",
+    label: "Rooms",
+    icon: "home-outline",
+    activeIcon: "home",
+  },
+
+  {
+    key: "AdminSensors",
+    label: "Sensors",
+    icon: "pulse-outline",
+    activeIcon: "pulse",
+  },
+  {
+    key: "AdminAlerts",
+    label: "Alerts",
+    icon: "notifications-outline",
+    activeIcon: "notifications",
+  },
+  {
+    key: "AdminWaterpump",
+    label: "Pump",
+    icon: "water-outline",
+    activeIcon: "water",
+  },
+  {
+    key: "AdminProfile",
+    label: "Profile",
+    icon: "person-outline",
+    activeIcon: "person",
+  },
 ];
 
 function AdminPlaceholder({ title }) {
   return (
-    <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#fff" }}>
-      <Text style={{ fontSize: 18, fontWeight: "600", color: "#111" }}>{title}</Text>
+    <View
+      style={{
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#fff",
+      }}
+    >
+      <Text style={{ fontSize: 18, fontWeight: "600", color: "#111" }}>
+        {title}
+      </Text>
       <Text style={{ marginTop: 8, color: "#666" }}>Coming soon</Text>
     </View>
   );
@@ -46,34 +93,47 @@ function AdminPlaceholder({ title }) {
 
 function renderAdminScreen(key) {
   switch (key) {
-    case "AdminUsers":   return <AdminUsersTab />;
-    case "AdminRooms":   return <AdminRoomsTab />;
-    case "AdminSensors": return <AdminSensorTab />;
-    case "AdminAlerts":  return <AdminAlertsTab />;
-    case "AdminWaterpump": return <AdminWaterpumpTab />;
-    case "AdminProfile": return <AdminProfile />;
-    default:             return <AdminUsersTab />;
+    case "AdminUsers":
+      return <AdminUsersTab />;
+    case "AdminRooms":
+      return <AdminRoomsTab />;
+    case "AdminBilik":
+      return <AdminBilikTab />;
+    case "AdminSensors":
+      return <AdminSensorTab />;
+    case "AdminAlerts":
+      return <AdminAlertsTab />;
+    case "AdminWaterpump":
+      return <AdminWaterpumpTab />;
+    case "AdminProfile":
+      return <AdminProfile />;
+    default:
+      return <AdminUsersTab />;
   }
 }
 
-const ACTIVE_TAB_KEY = 'firebomba_active_tab';
+const ACTIVE_TAB_KEY = "firebomba_active_tab";
 
 function loadActiveTab() {
-  try { return localStorage.getItem(ACTIVE_TAB_KEY) || "AdminUsers"; } catch {}
+  try {
+    return localStorage.getItem(ACTIVE_TAB_KEY) || "AdminUsers";
+  } catch {}
   return "AdminUsers";
 }
 
 // Sidebar layout rendered on wide web screens (>= 768 px)
 function AdminWebLayout({ navigation }) {
   const [activeTab, setActiveTabState] = useState(() =>
-    Platform.OS === 'web' ? loadActiveTab() : "AdminUsers"
+    Platform.OS === "web" ? loadActiveTab() : "AdminUsers",
   );
   const { setUser } = useApp();
 
   const setActiveTab = (tab) => {
     setActiveTabState(tab);
-    if (Platform.OS === 'web') {
-      try { localStorage.setItem(ACTIVE_TAB_KEY, tab); } catch {}
+    if (Platform.OS === "web") {
+      try {
+        localStorage.setItem(ACTIVE_TAB_KEY, tab);
+      } catch {}
     }
   };
 
@@ -107,7 +167,12 @@ function AdminWebLayout({ navigation }) {
                   size={20}
                   color={isActive ? "#e53935" : "#6b7280"}
                 />
-                <Text style={[webStyles.navLabel, isActive && webStyles.navLabelActive]}>
+                <Text
+                  style={[
+                    webStyles.navLabel,
+                    isActive && webStyles.navLabelActive,
+                  ]}
+                >
                   {item.label}
                 </Text>
               </TouchableOpacity>
@@ -119,7 +184,9 @@ function AdminWebLayout({ navigation }) {
           style={webStyles.logoutBtn}
           onPress={() => {
             setUser(null);
-            try { localStorage.removeItem(ACTIVE_TAB_KEY); } catch {}
+            try {
+              localStorage.removeItem(ACTIVE_TAB_KEY);
+            } catch {}
             navigation.replace("AdminLogin");
           }}
         >
@@ -129,9 +196,7 @@ function AdminWebLayout({ navigation }) {
       </View>
 
       {/* Main content */}
-      <View style={webStyles.content}>
-        {renderAdminScreen(activeTab)}
-      </View>
+      <View style={webStyles.content}>{renderAdminScreen(activeTab)}</View>
     </View>
   );
 }
@@ -183,6 +248,11 @@ function AdminTabs({ navigation }) {
         name="AdminRooms"
         component={AdminRoomsTab}
         options={{ tabBarLabel: "Rooms" }}
+      />
+      <AdminTab.Screen
+        name="AdminBilik"
+        component={AdminBilikTab}
+        options={{ tabBarLabel: "Bilik" }}
       />
       <AdminTab.Screen
         name="AdminSensors"
