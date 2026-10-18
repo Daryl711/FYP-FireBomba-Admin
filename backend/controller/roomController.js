@@ -1,4 +1,5 @@
 const Room = require("../models/room");
+const AuditLog = require("../models/auditLog");
 
 exports.getRooms = async (req, res) => {
   try {
@@ -26,6 +27,11 @@ exports.addRoom = async (req, res) => {
       cameraEnabled ? 1 : 0,
       bilikId === null ? null : Number(bilikId),
     );
+    await AuditLog.logAction(req.user, "CREATE", "room", roomId, {
+      name,
+      camera_enabled: Boolean(cameraEnabled),
+      bilik_id: bilikId === null ? null : Number(bilikId),
+    });
     res.status(201).json({ message: "Room created successfully", roomId });
   } catch (error) {
     res.status(500).json({ error: "Server error" });
@@ -54,6 +60,11 @@ exports.updateRoom = async (req, res) => {
       normalizedBilikId,
     );
     if (!affected) return res.status(404).json({ error: "Room not found" });
+    await AuditLog.logAction(req.user, "UPDATE", "room", id, {
+      name,
+      camera_enabled: Boolean(cameraEnabled),
+      ...(normalizedBilikId !== undefined && { bilik_id: normalizedBilikId }),
+    });
     res.json({ message: "Room updated successfully" });
   } catch (error) {
     res.status(500).json({ error: "Server error" });
@@ -66,6 +77,7 @@ exports.deleteRoom = async (req, res) => {
   try {
     const affected = await Room.deleteRoom(id);
     if (!affected) return res.status(404).json({ error: "Room not found" });
+    await AuditLog.logAction(req.user, "DELETE", "room", id);
     res.json({ message: "Room deleted successfully" });
   } catch (error) {
     res.status(500).json({ error: "Server error" });

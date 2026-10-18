@@ -38,7 +38,12 @@ function formatDate(dateStr) {
 	return new Date(dateStr).toISOString().slice(0, 10);
 }
 
-const EMPTY_FORM = { fullName: '', email: '', password: '', role: 'User' };
+const EMPTY_FORM = { fullName: '', email: '', password: '', role: 'User', bilikId: null };
+
+function formatBilik(bilik) {
+	if (!bilik) return 'No Bilik assigned';
+	return bilik.household ? `${bilik.number} · ${bilik.household}` : bilik.number;
+}
 
 export default function AdminUserScreen() {
 	const { user } = useApp();
@@ -46,6 +51,7 @@ export default function AdminUserScreen() {
 	const isWide = Platform.OS === 'web' && width >= 768;
 
 	const [users, setUsers] = useState([]);
+	const [bilikOptions, setBilikOptions] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [refreshing, setRefreshing] = useState(false);
 	const [search, setSearch] = useState('');
@@ -56,22 +62,35 @@ export default function AdminUserScreen() {
 	const [form, setForm] = useState(EMPTY_FORM);
 	const [formError, setFormError] = useState('');
 	const [submitting, setSubmitting] = useState(false);
+	const [editingUser, setEditingUser] = useState(null);
+	const [bilikMenuOpen, setBilikMenuOpen] = useState(false);
 
 	const authHeader = { Authorization: `Bearer ${user?.token}` };
 
 	const fetchUsers = useCallback(async () => {
 		try {
-			const res = await fetch(`${API_BASE_URL}/api/user`, {
-				headers: authHeader,
-			});
-			const data = await res.json();
-			if (!res.ok) throw new Error(data.error || 'Failed to fetch users');
+			const [usersRes, bilikRes] = await Promise.all([
+				fetch(`${API_BASE_URL}/api/user`, { headers: authHeader }),
+				fetch(`${API_BASE_URL}/api/bilik`, { headers: authHeader }),
+			]);
+			const [data, bilikData] = await Promise.all([usersRes.json(), bilikRes.json()]);
+			if (!usersRes.ok) throw new Error(data.error || 'Failed to fetch users');
+			if (!bilikRes.ok) throw new Error(bilikData.error || 'Failed to fetch bilik');
+			setBilikOptions(
+				bilikData.bilik.map((b) => ({
+					id: b.bilik_id,
+					number: b.bilik_number,
+					household: b.household_name,
+				})),
+			);
 			const mapped = data.users.map((u) => ({
 				id: u.user_id,
 				name: u.full_name,
 				email: u.email,
-				role: u.role.toLowerCase(),
+				role: (u.role || 'user').toLowerCase(),
 				created: formatDate(u.created_at),
+				bilikId: u.bilik_id,
+				bilik: u.bilik ? { number: u.bilik.bilik_number, household: u.bilik.household_name } : null,
 			}));
 			setUsers(mapped);
 		} catch (err) {
@@ -95,7 +114,9 @@ export default function AdminUserScreen() {
 
 	const filtered = useMemo(() => {
 		const q = search.trim().toLowerCase();
-		const res = users.filter((u) => `${u.name} ${u.email}`.toLowerCase().includes(q));
+		const res = users.filter((u) =>
+			`${u.name} ${u.email} ${u.bilik?.number || ''} ${u.bilik?.household || ''}`.toLowerCase().includes(q),
+		);
 		return [...res].sort((a, b) => {
 			if (sortBy === 'created') return new Date(a.created).getTime() - new Date(b.created).getTime();
 			const nameResult = a.name.localeCompare(b.name);
@@ -117,7 +138,7 @@ export default function AdminUserScreen() {
 					style: 'destructive',
 					onPress: async () => {
 						try {
-							const res = await fetch(`${API_BASE_URL}/api/auth/users/${userId}`, {
+							const res = await fetch(`${API_BASE_URL}/api/user/${userId}`, {
 								method: 'DELETE',
 								headers: authHeader,
 							});
@@ -137,9 +158,46 @@ export default function AdminUserScreen() {
 	}, [user?.token]);
 
 	const openAddModal = () => {
+		setEditingUser(null);
 		setForm(EMPTY_FORM);
 		setFormError('');
+		setBilikMenuOpen(false);
 		setModalVisible(true);
+	};
+
+	const openAssignModal = (item) => {
+		setEditingUser(item);
+		setForm({ ...EMPTY_FORM, bilikId: item.bilikId ?? null });
+		setFormError('');
+		setBilikMenuOpen(false);
+		setModalVisible(true);
+	};
+
+	const handleAssignBilik = async () => {
+		setFormError('');
+		if (form.bilikId == null) {
+			setFormError('Please select a bilik.');
+			return;
+		}
+		setSubmitting(true);
+		try {
+			const res = await fetch(`${API_BASE_URL}/api/user/${editingUser.id}/bilik`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json', ...authHeader },
+				body: JSON.stringify({ bilik_id: form.bilikId }),
+			});
+			const data = await res.json();
+			if (!res.ok) {
+				setFormError(data.error || 'Failed to assign bilik');
+				return;
+			}
+			setModalVisible(false);
+			await fetchUsers();
+		} catch {
+			setFormError('Unable to connect to server.');
+		} finally {
+			setSubmitting(false);
+		}
 	};
 
 	const handleAddUser = async () => {
@@ -148,16 +206,21 @@ export default function AdminUserScreen() {
 			setFormError('Full name, email, and password are required.');
 			return;
 		}
+		if (form.bilikId == null) {
+			setFormError('Please assign a bilik.');
+			return;
+		}
 		setSubmitting(true);
 		try {
-			const res = await fetch(`${API_BASE_URL}/api/user/add-user`, {
+			const res = await fetch(`${API_BASE_URL}/api/user`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', ...authHeader },
 				body: JSON.stringify({
 					full_name: form.fullName.trim(),
 					email: form.email.trim().toLowerCase(),
 					password: form.password,
-					role: form.role,
+					role: form.role.toLowerCase(),
+					bilik_id: form.bilikId,
 				}),
 			});
 			const data = await res.json();
@@ -193,6 +256,12 @@ export default function AdminUserScreen() {
 					</View>
 				</View>
 
+				<View style={styles.colBilik}>
+					<Text style={[styles.bilikText, !item.bilik && styles.bilikTextEmpty]} numberOfLines={1}>
+						{formatBilik(item.bilik)}
+					</Text>
+				</View>
+
 				<View style={styles.colSmall}>
 					<View style={[styles.badge, item.role === 'admin' ? styles.roleBadgeAdmin : styles.roleBadgeUser]}>
 						<Text style={[styles.badgeText, item.role === 'admin' ? styles.badgeTextAdmin : styles.badgeTextUser]}>
@@ -207,6 +276,13 @@ export default function AdminUserScreen() {
 
 				<View style={styles.colAction}>
 					<View style={styles.actionButtons}>
+						<TouchableOpacity
+							style={styles.editBtn}
+							onPress={() => openAssignModal(item)}
+							accessibilityLabel={`Assign bilik to ${item.name}`}
+						>
+							<Ionicons name="home-outline" size={16} color="#2563eb" />
+						</TouchableOpacity>
 						<TouchableOpacity
 							style={styles.deleteBtn}
 							onPress={() => handleDeleteUser(item.id, item.name)}
@@ -227,13 +303,20 @@ export default function AdminUserScreen() {
 				<View style={styles.modalOverlay}>
 					<View style={[styles.modalCard, isWide && styles.modalCardWeb]}>
 						<View style={styles.modalHeader}>
-							<Text style={styles.modalTitle}>Add New User</Text>
+							<Text style={styles.modalTitle}>{editingUser ? 'Assign Bilik' : 'Add New User'}</Text>
 							<TouchableOpacity onPress={() => setModalVisible(false)}>
 								<Ionicons name="close" size={22} color="#374151" />
 							</TouchableOpacity>
 						</View>
 
 						<ScrollView keyboardShouldPersistTaps="handled">
+							{editingUser ? (
+								<View style={styles.assignUserInfo}>
+									<Text style={styles.nameText}>{editingUser.name}</Text>
+									<Text style={styles.emailText}>{editingUser.email}</Text>
+								</View>
+							) : (
+							<>
 							<Text style={styles.fieldLabel}>Full Name</Text>
 							<TextInput
 								style={styles.fieldInput}
@@ -276,6 +359,48 @@ export default function AdminUserScreen() {
 									</TouchableOpacity>
 								))}
 							</View>
+							</>
+							)}
+
+							<Text style={styles.fieldLabel}>Bilik</Text>
+							<TouchableOpacity
+								style={styles.bilikSelect}
+								onPress={() => setBilikMenuOpen((open) => !open)}
+								accessibilityRole="button"
+								accessibilityLabel="Select bilik"
+							>
+								<Text style={[styles.bilikSelectText, form.bilikId == null && styles.bilikPlaceholder]} numberOfLines={1}>
+									{form.bilikId == null
+										? 'Select a bilik'
+										: formatBilik(bilikOptions.find((b) => b.id === form.bilikId))}
+								</Text>
+								<Ionicons name={bilikMenuOpen ? 'chevron-up' : 'chevron-down'} size={16} color="#6b7280" />
+							</TouchableOpacity>
+							{bilikMenuOpen ? (
+								<View style={styles.bilikOptions}>
+									<ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+										{bilikOptions.length === 0 ? (
+											<Text style={[styles.bilikOptionText, styles.bilikOption]}>
+												No bilik yet. Create one in the Bilik tab.
+											</Text>
+										) : null}
+										{bilikOptions.map((b) => (
+											<TouchableOpacity
+												key={b.id}
+												style={styles.bilikOption}
+												onPress={() => {
+													setForm((f) => ({ ...f, bilikId: b.id }));
+													setBilikMenuOpen(false);
+												}}
+											>
+												<Text style={[styles.bilikOptionText, form.bilikId === b.id && styles.bilikOptionActive]} numberOfLines={1}>
+													{formatBilik(b)}
+												</Text>
+											</TouchableOpacity>
+										))}
+									</ScrollView>
+								</View>
+							) : null}
 
 							{formError ? (
 								<View style={styles.formErrorWrap}>
@@ -286,13 +411,13 @@ export default function AdminUserScreen() {
 
 							<TouchableOpacity
 								style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
-								onPress={handleAddUser}
+								onPress={editingUser ? handleAssignBilik : handleAddUser}
 								disabled={submitting}
 							>
 								{submitting ? (
 									<ActivityIndicator color="#fff" size="small" />
 								) : (
-									<Text style={styles.submitBtnText}>Create User</Text>
+									<Text style={styles.submitBtnText}>{editingUser ? 'Save' : 'Create User'}</Text>
 								)}
 							</TouchableOpacity>
 						</ScrollView>
@@ -333,7 +458,7 @@ export default function AdminUserScreen() {
 					<View style={styles.searchBox}>
 						<Ionicons name="search" size={16} color="#9ca3af" />
 						<TextInput
-							placeholder="Search by name or email..."
+							placeholder="Search by name, email or bilik..."
 							placeholderTextColor="#9ca3af"
 							value={search}
 							onChangeText={setSearch}
@@ -386,6 +511,7 @@ export default function AdminUserScreen() {
 				<View style={styles.tableCard}>
 					<View style={styles.tableHeader}>
 						<Text style={[styles.headerCell, styles.nameCell]}>User</Text>
+						<Text style={[styles.headerCell, styles.bilikCell]}>Bilik</Text>
 						<Text style={[styles.headerCell, styles.roleCell]}>Role</Text>
 						<Text style={[styles.headerCell, styles.createdCell]}>Joined</Text>
 						<Text numberOfLines={1} style={[styles.headerCell, styles.actionCell]}>Actions</Text>
@@ -508,15 +634,17 @@ const styles = StyleSheet.create({
 	tableHeader: { flexDirection: 'row', paddingVertical: 11, paddingHorizontal: 16, backgroundColor: '#f8f9fb', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
 	headerCell: { color: '#9ca3af', fontWeight: '700', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.6 },
 	nameCell: { flex: 2.2 },
+	bilikCell: { flex: 1.3 },
 	roleCell: { flex: 0.9, textAlign: 'center' },
 	createdCell: { flex: 1, textAlign: 'center' },
-	actionCell: { flex: 0.7, textAlign: 'center' },
+	actionCell: { flex: 0.9, textAlign: 'center' },
 	row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', backgroundColor: '#fff' },
 	rowEven: { backgroundColor: '#fafbfc' },
 	colLarge: { flex: 2.2 },
 	colSmall: { flex: 0.9, alignItems: 'center' },
 	colMedium: { flex: 1, alignItems: 'center' },
-	colAction: { flex: 0.7, alignItems: 'center' },
+	colBilik: { flex: 1.3, paddingRight: 8 },
+	colAction: { flex: 0.9, alignItems: 'center' },
 	userInfo: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 	avatar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
 	avatarText: { color: '#fff', fontSize: 13, fontWeight: '700' },
@@ -525,7 +653,10 @@ const styles = StyleSheet.create({
 	emailText: { color: '#9ca3af', fontSize: 12, marginTop: 1 },
 	createdText: { color: '#9ca3af', fontSize: 12, textAlign: 'center' },
 	actionButtons: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+	editBtn: { padding: 7, backgroundColor: '#eff6ff', borderRadius: 8 },
 	deleteBtn: { padding: 7, backgroundColor: '#fff1f2', borderRadius: 8 },
+	bilikText: { color: '#374151', fontSize: 12 },
+	bilikTextEmpty: { color: '#d97706', fontStyle: 'italic' },
 	badge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20, gap: 4 },
 	roleBadgeAdmin: { backgroundColor: '#fee2e2' },
 	roleBadgeUser: { backgroundColor: '#f3f4f6' },
@@ -549,6 +680,14 @@ const styles = StyleSheet.create({
 	roleOptionActive: { borderColor: '#e53935', backgroundColor: '#fff1f2' },
 	roleOptionText: { fontSize: 14, fontWeight: '600', color: '#6b7280' },
 	roleOptionTextActive: { color: '#e53935' },
+	assignUserInfo: { padding: 12, borderRadius: 10, backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb' },
+	bilikSelect: { minHeight: 44, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#f9fafb' },
+	bilikSelectText: { flex: 1, color: '#111827', fontSize: 14 },
+	bilikPlaceholder: { color: '#9ca3af' },
+	bilikOptions: { maxHeight: 180, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, marginTop: 6, overflow: 'hidden' },
+	bilikOption: { paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+	bilikOptionText: { color: '#374151', fontSize: 14 },
+	bilikOptionActive: { color: '#e53935', fontWeight: '600' },
 	formErrorWrap: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12 },
 	formErrorText: { color: '#dc2626', fontSize: 13, flex: 1 },
 	submitBtn: { backgroundColor: '#e53935', borderRadius: 10, paddingVertical: 14, alignItems: 'center', justifyContent: 'center', marginTop: 20, minHeight: 50 },

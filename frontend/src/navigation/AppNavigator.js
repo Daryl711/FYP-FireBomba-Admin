@@ -19,6 +19,7 @@ import AdminBilikTab from "../screens/AdminBilikTab";
 import AdminAlertsTab from "../screens/AdminAlertsTab";
 import AdminSensorTab from "../screens/AdminSensorTab";
 import AdminWaterpumpTab from "../screens/AdminWaterpumpTab";
+import AdminAuditLogTab from "../screens/AdminAuditLogTab";
 import AdminProfile from "../screens/AdminProfile";
 import { useApp } from "../context/AppContext";
 
@@ -66,6 +67,12 @@ const ADMIN_NAV_ITEMS = [
     activeIcon: "water",
   },
   {
+    key: "AdminAuditLog",
+    label: "Audit Log",
+    icon: "document-text-outline",
+    activeIcon: "document-text",
+  },
+  {
     key: "AdminProfile",
     label: "Profile",
     icon: "person-outline",
@@ -105,6 +112,8 @@ function renderAdminScreen(key) {
       return <AdminAlertsTab />;
     case "AdminWaterpump":
       return <AdminWaterpumpTab />;
+    case "AdminAuditLog":
+      return <AdminAuditLogTab />;
     case "AdminProfile":
       return <AdminProfile />;
     default:
@@ -268,6 +277,11 @@ function AdminTabs({ navigation }) {
         name="AdminWaterpump"
         component={AdminWaterpumpTab}
         options={{ tabBarLabel: "Pump" }}
+      />
+      <AdminTab.Screen
+        name="AdminAuditLog"
+        component={AdminAuditLogTab}
+        options={{ tabBarLabel: "Audit" }}
       />
       <AdminTab.Screen
         name="AdminProfile"

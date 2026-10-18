@@ -2,6 +2,7 @@ const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const supabase = require("../config/supabase");
 const createAuthClient = require("../config/supabaseAuth");
+const AuditLog = require("../models/auditLog");
 
 exports.signup = async (req, res) => {
   const { fullName, email, password } = req.body;
@@ -82,6 +83,8 @@ exports.login = async (req, res) => {
         error: "User profile not found",
       });
     }
+
+    await AuditLog.logAction(user, "LOGIN", "admin", user.id);
 
     // 5. Return login information
     return res.status(200).json({

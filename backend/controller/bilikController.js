@@ -1,4 +1,5 @@
 const Bilik = require("../models/bilik");
+const AuditLog = require("../models/auditLog");
 
 const validateBilik = (bilikNumber, householdName) => {
   if (typeof bilikNumber !== "string" || !bilikNumber.trim()) {
@@ -36,6 +37,10 @@ exports.createBilik = async (req, res) => {
       bilikNumber.trim(),
       householdName?.trim() || null,
     );
+    await AuditLog.logAction(req.user, "CREATE", "bilik", bilik.bilik_id, {
+      bilik_number: bilik.bilik_number,
+      household_name: bilik.household_name,
+    });
     res.status(201).json({ bilik });
   } catch (error) {
     console.error(error);
@@ -55,6 +60,10 @@ exports.updateBilik = async (req, res) => {
       householdName?.trim() || null,
     );
     if (!bilik) return res.status(404).json({ error: "Bilik not found" });
+    await AuditLog.logAction(req.user, "UPDATE", "bilik", bilik.bilik_id, {
+      bilik_number: bilik.bilik_number,
+      household_name: bilik.household_name,
+    });
     res.json({ bilik });
   } catch (error) {
     console.error(error);
@@ -66,6 +75,7 @@ exports.deleteBilik = async (req, res) => {
   try {
     const bilik = await Bilik.deleteBilik(req.params.id);
     if (!bilik) return res.status(404).json({ error: "Bilik not found" });
+    await AuditLog.logAction(req.user, "DELETE", "bilik", req.params.id);
     res.json({ message: "Bilik deleted" });
   } catch (error) {
     console.error(error);
