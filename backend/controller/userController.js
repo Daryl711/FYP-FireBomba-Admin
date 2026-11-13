@@ -1,5 +1,3 @@
-const bcrypt = require("bcryptjs");
-const User = require("../models/User");
 const AdminUser = require("../models/adminUser");
 const AuditLog = require("../models/auditLog");
 const supabase = require('../config/supabase');

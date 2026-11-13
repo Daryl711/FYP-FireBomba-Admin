@@ -18,6 +18,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useApp } from "../context/AppContext";
 import { API_BASE_URL } from "../../constants/api";
+import { showAlert } from "../utils/alert";
+import { apiFetch } from "../config/api";
 
 const EMPTY_FORM = { bilikNumber: "", householdName: "" };
 
@@ -45,14 +47,14 @@ export default function AdminBilikTab() {
 
   const fetchBilik = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/bilik`, {
+      const res = await apiFetch(`${API_BASE_URL}/api/bilik`, {
         headers: authHeader,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to fetch bilik");
       setBilik(data.bilik);
     } catch (err) {
-      Alert.alert("Error", err.message);
+      showAlert("Error", err.message);
     }
   }, [user?.token]);
 
@@ -114,7 +116,7 @@ export default function AdminBilikTab() {
       const url = isEdit
         ? `${API_BASE_URL}/api/bilik/${editingId}`
         : `${API_BASE_URL}/api/bilik`;
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json", ...authHeader },
         body: JSON.stringify({
@@ -138,7 +140,7 @@ export default function AdminBilikTab() {
 
   const handleDelete = useCallback(
     (item) => {
-      Alert.alert(
+      showAlert(
         "Delete Bilik",
         `Delete ${item.bilik_number}? Linked rooms, sensor readings, actuator data, and user profile rows will also be deleted. This cannot be undone.`,
         [
@@ -148,7 +150,7 @@ export default function AdminBilikTab() {
             style: "destructive",
             onPress: async () => {
               try {
-                const res = await fetch(
+                const res = await apiFetch(
                   `${API_BASE_URL}/api/bilik/${item.bilik_id}`,
                   {
                     method: "DELETE",
@@ -157,14 +159,14 @@ export default function AdminBilikTab() {
                 );
                 const data = await res.json();
                 if (!res.ok) {
-                  Alert.alert("Error", data.error || "Failed to delete bilik");
+                  showAlert("Error", data.error || "Failed to delete bilik");
                   return;
                 }
                 setBilik((current) =>
                   current.filter((entry) => entry.bilik_id !== item.bilik_id),
                 );
               } catch {
-                Alert.alert("Error", "Unable to connect to server.");
+                showAlert("Error", "Unable to connect to server.");
               }
             },
           },

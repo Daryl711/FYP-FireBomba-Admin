@@ -16,6 +16,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { API_BASE_URL } from '../../constants/api';
+import { showAlert } from "../utils/alert";
+import { apiFetch } from "../config/api";
 
 function formatDate(dateStr) {
 	if (!dateStr) return '—';
@@ -39,7 +41,7 @@ export default function AdminWaterpumpTab() {
 
 	const fetchActuators = useCallback(async () => {
 		try {
-			const res = await fetch(`${API_BASE_URL}/api/actuators`, { headers: authHeader });
+			const res = await apiFetch(`${API_BASE_URL}/api/actuators`, { headers: authHeader });
 			const data = await res.json();
 			if (!res.ok) throw new Error(data.error || 'Failed to fetch actuators');
 			const mapped = data.actuators.map((a) => ({
@@ -52,7 +54,7 @@ export default function AdminWaterpumpTab() {
 			}));
 			setActuators(mapped);
 		} catch (err) {
-			Alert.alert('Error', err.message);
+			showAlert('Error', err.message);
 		}
 	}, [user?.token]);
 

@@ -18,6 +18,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useApp } from "../context/AppContext";
 import { API_BASE_URL } from "../../constants/api";
+import { showAlert } from "../utils/alert";
+import { apiFetch } from "../config/api";
 
 function formatDate(dateStr) {
   if (!dateStr) return "—";
@@ -57,8 +59,8 @@ export default function AdminRoomsTab() {
   const fetchRooms = useCallback(async () => {
     try {
       const [roomsRes, bilikRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/rooms`, { headers: authHeader }),
-        fetch(`${API_BASE_URL}/api/bilik`, { headers: authHeader }),
+        apiFetch(`${API_BASE_URL}/api/rooms`, { headers: authHeader }),
+        apiFetch(`${API_BASE_URL}/api/bilik`, { headers: authHeader }),
       ]);
       const [roomsData, bilikData] = await Promise.all([
         roomsRes.json(),
@@ -85,7 +87,7 @@ export default function AdminRoomsTab() {
       }));
       setRooms(mapped);
     } catch (err) {
-      Alert.alert("Error", err.message);
+      showAlert("Error", err.message);
     }
   }, [user?.token]);
 
@@ -160,7 +162,7 @@ export default function AdminRoomsTab() {
       const url = isEdit
         ? `${API_BASE_URL}/api/rooms/${editingId}`
         : `${API_BASE_URL}/api/rooms`;
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json", ...authHeader },
         body: JSON.stringify({
@@ -186,7 +188,7 @@ export default function AdminRoomsTab() {
 
   const handleDelete = useCallback(
     (roomId, roomName) => {
-      Alert.alert(
+      showAlert(
         "Delete Room",
         `Delete ${roomName}? This action cannot be undone.`,
         [
@@ -196,17 +198,17 @@ export default function AdminRoomsTab() {
             style: "destructive",
             onPress: async () => {
               try {
-                const res = await fetch(`${API_BASE_URL}/api/rooms/${roomId}`, {
+                const res = await apiFetch(`${API_BASE_URL}/api/rooms/${roomId}`, {
                   method: "DELETE",
                   headers: authHeader,
                 });
                 if (!res.ok) {
-                  Alert.alert("Error", "Failed to delete room");
+                  showAlert("Error", "Failed to delete room");
                   return;
                 }
                 setRooms((cur) => cur.filter((r) => r.id !== roomId));
               } catch {
-                Alert.alert("Error", "Unable to connect to server.");
+                showAlert("Error", "Unable to connect to server.");
               }
             },
           },

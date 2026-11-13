@@ -3,15 +3,18 @@ const supabase = require('../config/supabase.js');
 
 const requireToken = async (req, res, next) => {
   try {
+    // Prefer the httpOnly cookie (set at login); fall back to a Bearer header
+    // for non-browser clients / tools.
     const authHeader = req.headers.authorization;
+    const token =
+      req.cookies?.fb_access_token ||
+      (authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : null);
 
-    if (!authHeader?.startsWith("Bearer ")) {
+    if (!token) {
       return res.status(401).json({
         error: "Missing authentication token",
       });
     }
-
-    const token = authHeader.split(" ")[1];
 
     const { data, error } = await supabase.auth.getUser(token);
 

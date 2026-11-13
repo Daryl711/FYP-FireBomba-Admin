@@ -14,7 +14,9 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useApp } from "../context/AppContext";
-import { supabase } from "../config/supabase";
+import { apiFetch } from "../config/api";
+import { API_BASE_URL } from "../../constants/api";
+import { showAlert } from "../utils/alert";
 
 const ACTIVE_TAB_KEY = "firebomba_active_tab";
 
@@ -51,7 +53,7 @@ export default function AdminProfile() {
   const initials = getInitials(displayName);
 
   const handleLogout = () => {
-    Alert.alert("Log Out", "Are you sure you want to log out?", [
+    showAlert("Log Out", "Are you sure you want to log out?", [
       {
         text: "Cancel",
         style: "cancel",
@@ -60,14 +62,13 @@ export default function AdminProfile() {
         text: "Log Out",
         style: "destructive",
         onPress: async () => {
-          const { error } = await supabase.auth.signOut();
-
-          if (error) {
-            console.error("Logout error:", error.message);
-
-            Alert.alert("Logout Failed", error.message);
-
-            return;
+          // Clear the httpOnly auth cookie on the server.
+          try {
+            await apiFetch(`${API_BASE_URL}/api/auth/logout`, {
+              method: "POST",
+            });
+          } catch (error) {
+            console.error("Logout error:", error);
           }
 
           setUser(null);

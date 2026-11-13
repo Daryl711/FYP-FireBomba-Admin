@@ -1,31 +1,19 @@
-const bcrypt = require("bcryptjs");
-const User = require("../models/User");
 const supabase = require("../config/supabase");
 const createAuthClient = require("../config/supabaseAuth");
 const AuditLog = require("../models/auditLog");
 
-exports.signup = async (req, res) => {
-  const { fullName, email, password } = req.body;
+const ACCESS_COOKIE = "fb_access_token";
 
-  try {
-    const doesEmailExist = await User.checkEmail(email);
-
-    if (doesEmailExist) {
-      return res.status(400).json({ error: "Email already registered" });
-    }
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const userId = await User.addUser(fullName, email, hashedPassword);
-
-    return res.status(201).json({
-      message: "Account created successfully",
-      userId,
-    });
-  } catch (error) {
-    res.status(500).json({ error: "Server error" });
-    console.error(error);
-  }
-};
+// httpOnly cookie options. httpOnly keeps the token out of reach of JavaScript
+// (so XSS cannot steal it); secure is enabled in production (HTTPS); sameSite
+// "lax" still allows the admin front-end (same site) to send it.
+const cookieOptions = () => ({
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "lax",
+  maxAge: 60 * 60 * 1000, // 1 hour
+  path: "/",
+});
 
 exports.login = async (req, res) => {
   try {
@@ -86,7 +74,12 @@ exports.login = async (req, res) => {
 
     await AuditLog.logAction(user, "LOGIN", "admin", user.id);
 
-    // 5. Return login information
+    // Store the access token in an httpOnly cookie instead of returning it in
+    // the response body. The browser sends it automatically on each request,
+    // but page JavaScript can never read it, closing the XSS token-theft risk.
+    res.cookie(ACCESS_COOKIE, session.access_token, cookieOptions());
+
+    // 5. Return login information (no token in the body)
     return res.status(200).json({
       message: "Login successful",
 
@@ -102,8 +95,6 @@ exports.login = async (req, res) => {
       role: roleData.role,
 
       session: {
-        access_token: session.access_token,
-        refresh_token: session.refresh_token,
         expires_at: session.expires_at,
       },
     });
@@ -115,76 +106,8 @@ exports.login = async (req, res) => {
     });
   }
 };
-// const doesEmailExist = await User.checkEmail(email);
 
-// if (!doesEmailExist) {
-//     return res.status(400).json({error: "User not found"});
-// }
-
-// const userDetails = await User.getUserDetails(email);
-
-// const passwordMatch = await bcrypt.compare(password, userDetails.hashedPassword);
-
-// if (!passwordMatch)
-// return res.status(401).json({ error: "Incorrect password" });
-
-// const token = jwt.sign(
-// { userId: userDetails.userId, email: userDetails.email, roomId: userDetails.roomId },
-// JWT_SECRET,
-// { expiresIn: JWT_EXPIRES_IN },
-// );
-
-// exports.adminLogin = async (req, res) => {
-//   try {
-//     const { email, password } = req.body;
-
-//     if (!email || !password) {
-//       return res.status(400).json({ error: "Email and password are required" });
-//     }
-
-//     const doesEmailExist = await User.checkEmail(email);
-//     if (!doesEmailExist) {
-//       return res.status(401).json({ error: "Invalid credentials" });
-//     }
-
-//     const userDetails = await User.getUserDetails(email);
-
-//     const passwordMatch = await bcrypt.compare(
-//       password,
-//       userDetails.hashedPassword,
-//     );
-//     if (!passwordMatch) {
-//       return res.status(401).json({ error: "Invalid credentials" });
-//     }
-
-//     if (userDetails.role !== "Admin") {
-//       return res
-//         .status(403)
-//         .json({ error: "Access denied. Admin privileges required." });
-//     }
-
-//     const token = jwt.sign(
-//       {
-//         userId: userDetails.userId,
-//         email: userDetails.email,
-//         role: userDetails.role,
-//       },
-//       JWT_SECRET,
-//       { expiresIn: JWT_EXPIRES_IN },
-//     );
-
-//     return res.status(200).json({
-//       message: "Login successful",
-//       token,
-//       user: {
-//         userId: userDetails.userId,
-//         fullName: userDetails.fullName,
-//         email: userDetails.email,
-//         role: userDetails.role,
-//       },
-//     });
-//   } catch (error) {
-//     res.status(500).json({ error: "Server error" });
-//     console.error(error);
-//   }
-// };
+exports.logout = async (req, res) => {
+  res.clearCookie(ACCESS_COOKIE, { ...cookieOptions(), maxAge: undefined });
+  return res.status(200).json({ message: "Logged out" });
+};

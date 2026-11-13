@@ -15,6 +15,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useApp } from "../context/AppContext";
 import { API_BASE_URL } from "../../constants/api";
+import { showAlert } from "../utils/alert";
+import { apiFetch } from "../config/api";
 
 const PAGE_SIZE = 50;
 
@@ -99,7 +101,7 @@ export default function AdminAuditLogTab() {
         if (entity) params.append("entity", entity);
         if (action) params.append("action", action);
 
-        const res = await fetch(`${API_BASE_URL}/api/audit-logs?${params}`, {
+        const res = await apiFetch(`${API_BASE_URL}/api/audit-logs?${params}`, {
           headers: { Authorization: `Bearer ${user?.token}` },
         });
         const data = await res.json();
@@ -109,7 +111,7 @@ export default function AdminAuditLogTab() {
         );
         setTotal(data.total ?? 0);
       } catch (err) {
-        Alert.alert("Error", err.message);
+        showAlert("Error", err.message);
       }
     },
     [user?.token, entity, action],

@@ -18,6 +18,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { API_BASE_URL } from '../../constants/api';
+import { showAlert } from "../utils/alert";
+import { apiFetch } from "../config/api";
 
 const AVATAR_COLORS = ['#7c3aed', '#0369a1', '#047857', '#b45309', '#be185d', '#0f766e'];
 
@@ -70,8 +72,8 @@ export default function AdminUserScreen() {
 	const fetchUsers = useCallback(async () => {
 		try {
 			const [usersRes, bilikRes] = await Promise.all([
-				fetch(`${API_BASE_URL}/api/user`, { headers: authHeader }),
-				fetch(`${API_BASE_URL}/api/bilik`, { headers: authHeader }),
+				apiFetch(`${API_BASE_URL}/api/user`, { headers: authHeader }),
+				apiFetch(`${API_BASE_URL}/api/bilik`, { headers: authHeader }),
 			]);
 			const [data, bilikData] = await Promise.all([usersRes.json(), bilikRes.json()]);
 			if (!usersRes.ok) throw new Error(data.error || 'Failed to fetch users');
@@ -94,7 +96,7 @@ export default function AdminUserScreen() {
 			}));
 			setUsers(mapped);
 		} catch (err) {
-			Alert.alert('Error', err.message);
+			showAlert('Error', err.message);
 		}
 	}, [user?.token]);
 
@@ -128,7 +130,7 @@ export default function AdminUserScreen() {
 	const sortLabel = useMemo(() => (sortBy === 'created' ? 'Sort by Date' : 'Sort by Name'), [sortBy]);
 
 	const handleDeleteUser = useCallback((userId, userName) => {
-		Alert.alert(
+		showAlert(
 			'Delete User',
 			`Delete ${userName}? This action cannot be undone.`,
 			[
@@ -138,18 +140,18 @@ export default function AdminUserScreen() {
 					style: 'destructive',
 					onPress: async () => {
 						try {
-							const res = await fetch(`${API_BASE_URL}/api/user/${userId}`, {
+							const res = await apiFetch(`${API_BASE_URL}/api/user/${userId}`, {
 								method: 'DELETE',
 								headers: authHeader,
 							});
 							if (!res.ok) {
 								const data = await res.json();
-								Alert.alert('Error', data.error || 'Failed to delete user');
+								showAlert('Error', data.error || 'Failed to delete user');
 								return;
 							}
 							setUsers((cur) => cur.filter((e) => e.id !== userId));
 						} catch {
-							Alert.alert('Error', 'Unable to connect to server.');
+							showAlert('Error', 'Unable to connect to server.');
 						}
 					},
 				},
@@ -181,7 +183,7 @@ export default function AdminUserScreen() {
 		}
 		setSubmitting(true);
 		try {
-			const res = await fetch(`${API_BASE_URL}/api/user/${editingUser.id}/bilik`, {
+			const res = await apiFetch(`${API_BASE_URL}/api/user/${editingUser.id}/bilik`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json', ...authHeader },
 				body: JSON.stringify({ bilik_id: form.bilikId }),
@@ -212,7 +214,7 @@ export default function AdminUserScreen() {
 		}
 		setSubmitting(true);
 		try {
-			const res = await fetch(`${API_BASE_URL}/api/user`, {
+			const res = await apiFetch(`${API_BASE_URL}/api/user`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', ...authHeader },
 				body: JSON.stringify({

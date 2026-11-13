@@ -15,6 +15,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useApp } from "../context/AppContext";
 import { API_BASE_URL } from "../../constants/api";
+import { apiFetch } from "../config/api";
 
 export default function AdminLogin({ navigation }) {
   const { setUser } = useApp();
@@ -36,7 +37,7 @@ export default function AdminLogin({ navigation }) {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      const response = await apiFetch(`${API_BASE_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
@@ -49,7 +50,8 @@ export default function AdminLogin({ navigation }) {
         return;
       }
 
-      setUser({ ...data.user, token: data.session.access_token });
+      // Access token is now held in an httpOnly cookie, not in JS.
+      setUser({ ...data.user });
       navigation.replace("Admin");
     } catch (err) {
       setError(

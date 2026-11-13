@@ -57,11 +57,17 @@ exports.updateRoom = async (roomId, name, status, cameraEnabled, bilikId) => {
 };
 
 exports.deleteRoom = async (roomId) => {
-  const { error } = await supabase.from("rooms").delete().eq("room_id", roomId);
+  const { data, error } = await supabase
+    .from("rooms")
+    .delete()
+    .eq("room_id", roomId)
+    .select("room_id");
 
   if (error) {
     throw error;
   }
 
-  return true;
+  // Return whether a row was actually deleted so the controller can 404 on a
+  // non-existent id instead of falsely reporting success.
+  return Array.isArray(data) && data.length > 0;
 };

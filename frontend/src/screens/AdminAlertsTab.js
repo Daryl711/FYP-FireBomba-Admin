@@ -16,6 +16,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { API_BASE_URL } from '../../constants/api';
+import { showAlert } from "../utils/alert";
+import { apiFetch } from "../config/api";
 
 function formatDateTime(dateStr) {
 	if (!dateStr) return '';
@@ -42,7 +44,7 @@ export default function AdminAlertsTab() {
 
 	const fetchAlerts = useCallback(async () => {
 		try {
-			const res = await fetch(`${API_BASE_URL}/api/alerts`, {
+			const res = await apiFetch(`${API_BASE_URL}/api/alerts`, {
 				headers: authHeader,
 			});
 			const data = await res.json();
@@ -56,7 +58,7 @@ export default function AdminAlertsTab() {
 			}));
 			setAlerts(mapped);
 		} catch (err) {
-			Alert.alert('Error', err.message);
+			showAlert('Error', err.message);
 		}
 	}, [user?.token]);
 
@@ -92,41 +94,41 @@ export default function AdminAlertsTab() {
 
 	// const handleAcknowledge = useCallback(async (alertId) => {
 	// 	try {
-	// 		const res = await fetch(`${API_BASE_URL}/api/alerts/${alertId}/acknowledge`, {
+	// 		const res = await apiFetch(`${API_BASE_URL}/api/alerts/${alertId}/acknowledge`, {
 	// 			method: 'PATCH',
 	// 			headers: authHeader,
 	// 		});
 	// 		if (!res.ok) {
 	// 			const data = await res.json();
-	// 			Alert.alert('Error', data.error || 'Failed to update alert');
+	// 			showAlert('Error', data.error || 'Failed to update alert');
 	// 			return;
 	// 		}
 	// 		setAlerts((cur) => cur.map((a) => a.id === alertId ? { ...a, isRead: !a.isRead } : a));
 	// 	} catch {
-	// 		Alert.alert('Error', 'Unable to connect to server.');
+	// 		showAlert('Error', 'Unable to connect to server.');
 	// 	}
 	// }, [user?.token]);
 
 	// const handleDelete = useCallback((alertId) => {
-	// 	Alert.alert('Delete Alert', 'Remove this alert permanently?', [
+	// 	showAlert('Delete Alert', 'Remove this alert permanently?', [
 	// 		{ text: 'Cancel', style: 'cancel' },
 	// 		{
 	// 			text: 'Delete',
 	// 			style: 'destructive',
 	// 			onPress: async () => {
 	// 				try {
-	// 					const res = await fetch(`${API_BASE_URL}/api/alerts/${alertId}`, {
+	// 					const res = await apiFetch(`${API_BASE_URL}/api/alerts/${alertId}`, {
 	// 						method: 'DELETE',
 	// 						headers: authHeader,
 	// 					});
 	// 					if (!res.ok) {
 	// 						const data = await res.json();
-	// 						Alert.alert('Error', data.error || 'Failed to delete alert');
+	// 						showAlert('Error', data.error || 'Failed to delete alert');
 	// 						return;
 	// 					}
 	// 					setAlerts((cur) => cur.filter((a) => a.id !== alertId));
 	// 				} catch {
-	// 					Alert.alert('Error', 'Unable to connect to server.');
+	// 					showAlert('Error', 'Unable to connect to server.');
 	// 				}
 	// 			},
 	// 		},

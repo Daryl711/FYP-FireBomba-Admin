@@ -16,6 +16,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { API_BASE_URL } from '../../constants/api';
+import { showAlert } from "../utils/alert";
+import { apiFetch } from "../config/api";
 
 function formatDate(dateStr) {
 	if (!dateStr) return '—';
@@ -40,7 +42,7 @@ export default function AdminSensorTab() {
 
 	const fetchSensors = useCallback(async () => {
 		try {
-			const res = await fetch(`${API_BASE_URL}/api/sensors`, { headers: authHeader });
+			const res = await apiFetch(`${API_BASE_URL}/api/sensors`, { headers: authHeader });
 			const data = await res.json();
 			if (!res.ok) throw new Error(data.error || 'Failed to fetch sensors');
 			const mapped = data.sensors.map((s) => ({
@@ -53,7 +55,7 @@ export default function AdminSensorTab() {
 			}));
 			setSensors(mapped);
 		} catch (err) {
-			Alert.alert('Error', err.message);
+			showAlert('Error', err.message);
 		}
 	}, [user?.token]);
 

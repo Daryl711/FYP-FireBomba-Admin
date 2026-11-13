@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 const authRouter = require("./routes/auth.routes");
 const userRouter = require("./routes/user.routes");
 const alertRouter = require("./routes/alert.routes");
@@ -12,8 +13,30 @@ const auditLogRouter = require("./routes/auditLog.routes");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+// Restrict CORS to known front-end origins instead of reflecting any origin.
+// Set CORS_ORIGINS in .env (comma-separated) for staging/production domains.
+const allowedOrigins = (
+  process.env.CORS_ORIGINS ||
+  "http://localhost:8081,http://localhost:19006,http://localhost:19000"
+)
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow non-browser clients (curl, mobile apps) that send no Origin.
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+  }),
+);
 app.use(express.json());
+app.use(cookieParser());
 
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok" });
