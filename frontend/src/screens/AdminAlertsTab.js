@@ -19,9 +19,12 @@ import { API_BASE_URL } from '../../constants/api';
 
 function formatDateTime(dateStr) {
 	if (!dateStr) return '';
+	// Date and time both in the admin's local timezone (toISOString is UTC,
+	// which put late-night alerts on the previous day).
 	const d = new Date(dateStr);
-	const date = d.toISOString().slice(0, 10);
-	const time = d.toTimeString().slice(0, 5);
+	const pad = (n) => String(n).padStart(2, '0');
+	const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+	const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 	return `${date}\n${time}`;
 }
 
@@ -50,6 +53,8 @@ export default function AdminAlertsTab() {
 			const mapped = data.alerts.map((a) => ({
 				id: a.alert_id,
 				roomId: a.room_id,
+				roomName: a.room_name,
+				bilikNumber: a.bilik_number,
 				time: a.timestamp,
 				title: a.warning_title,
 				isRead: !!a.is_read,
@@ -77,7 +82,7 @@ export default function AdminAlertsTab() {
 	const filtered = useMemo(() => {
 		const q = search.trim().toLowerCase();
 		const res = alerts.filter((a) => {
-			const matchSearch = (a.title ?? '').toLowerCase().includes(q) || String(a.roomId).includes(q);
+			const matchSearch = `${a.title ?? ''} ${a.roomId} ${a.roomName ?? ''} ${a.bilikNumber ?? ''}`.toLowerCase().includes(q);
 			const matchUnread = unreadOnly ? !a.isRead : true;
 			return matchSearch && matchUnread;
 		});
@@ -141,6 +146,12 @@ export default function AdminAlertsTab() {
 					<View style={styles.roomIdBadge}>
 						<Text style={styles.roomIdText}>#{item.roomId}</Text>
 					</View>
+					{item.roomName ? (
+						<Text style={styles.roomNameText} numberOfLines={1}>{item.roomName}</Text>
+					) : null}
+					{item.bilikNumber ? (
+						<Text style={styles.bilikText} numberOfLines={1}>{item.bilikNumber}</Text>
+					) : null}
 				</View>
 
 				<View style={styles.colTime}>
@@ -210,7 +221,7 @@ export default function AdminAlertsTab() {
 					<View style={styles.searchBox}>
 						<Ionicons name="search" size={16} color="#9ca3af" />
 						<TextInput
-							placeholder="Search by warning title or room ID..."
+							placeholder="Search by warning, room or bilik..."
 							placeholderTextColor="#9ca3af"
 							value={search}
 							onChangeText={setSearch}
@@ -352,12 +363,14 @@ const styles = StyleSheet.create({
 	tableCard: { flex: 1, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#e5e7eb', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
 	tableHeader: { flexDirection: 'row', paddingVertical: 11, paddingHorizontal: 16, backgroundColor: '#f8f9fb', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
 	headerCell: { color: '#9ca3af', fontWeight: '700', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.6 },
-	hRoomId: { flex: 0.7, textAlign: 'center' },
+	hRoomId: { flex: 1.1, textAlign: 'center' },
 	hTime: { flex: 1.3, textAlign: 'center' },
 	hAck: { flex: 4 },
 	row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', backgroundColor: '#fff' },
 	rowEven: { backgroundColor: '#fafbfc' },
-	colRoomId: { flex: 0.7, alignItems: 'center' },
+	colRoomId: { flex: 1.1, alignItems: 'center', paddingHorizontal: 4 },
+	roomNameText: { fontSize: 12, fontWeight: '600', color: '#111827', marginTop: 4, textAlign: 'center' },
+	bilikText: { fontSize: 11, color: '#9ca3af', marginTop: 1, textAlign: 'center' },
 	colTime: { flex: 1.3, alignItems: 'center' },
 	colAck: { flex: 4 },
 	roomIdBadge: { backgroundColor: '#f3f4f6', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },

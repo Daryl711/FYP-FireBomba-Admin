@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS rooms (
 -- 3. USERS
 -- =========================================================
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     bilik_id INTEGER NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
@@ -56,6 +56,21 @@ CREATE TABLE users (
         REFERENCES Bilik(bilik_id)
         ON DELETE CASCADE
 );
+
+-- The room a user lives in. Added with ALTER (not in CREATE TABLE above) so
+-- rerunning this file also upgrades an existing users table. Safe to rerun.
+-- Room must belong to the user's bilik (enforced in the backend).
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS room_id INTEGER;
+
+ALTER TABLE users
+    DROP CONSTRAINT IF EXISTS users_room_fk;
+
+ALTER TABLE users
+    ADD CONSTRAINT users_room_fk
+        FOREIGN KEY (room_id)
+        REFERENCES rooms(room_id)
+        ON DELETE SET NULL;
 
 
 -- =========================================================
@@ -94,6 +109,40 @@ CREATE TABLE IF NOT EXISTS actuators (
         REFERENCES rooms(room_id)
         ON DELETE CASCADE
 );
+
+
+-- =========================================================
+-- 5b. ROOM DEVICES
+-- =========================================================
+
+-- Which devices are installed in each room, set by the admin. These say
+-- whether the hardware exists; rooms.camera_enabled and
+-- actuators.waterpump_enabled are the residents' on/off switches.
+-- Safe to rerun: existing rooms are backfilled from current data only the
+-- first time the columns are added, so later admin changes are kept.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'rooms'
+          AND column_name = 'has_camera'
+    ) THEN
+        ALTER TABLE rooms
+            ADD COLUMN has_camera BOOLEAN NOT NULL DEFAULT FALSE,
+            ADD COLUMN has_sensor BOOLEAN NOT NULL DEFAULT FALSE,
+            ADD COLUMN has_waterpump BOOLEAN NOT NULL DEFAULT FALSE;
+
+        UPDATE rooms r SET
+            has_camera = COALESCE(r.camera_enabled, FALSE),
+            has_sensor = EXISTS (
+                SELECT 1 FROM sensor_readings s WHERE s.room_id = r.room_id
+            ),
+            has_waterpump = EXISTS (
+                SELECT 1 FROM actuators a WHERE a.room_id = r.room_id
+            );
+    END IF;
+END $$;
 
 
 -- =========================================================

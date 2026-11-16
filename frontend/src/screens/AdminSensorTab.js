@@ -17,11 +17,36 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { API_BASE_URL } from '../../constants/api';
 
-function formatDate(dateStr) {
-	if (!dateStr) return '—';
-	return new Date(dateStr).toISOString().slice(0, 10);
+// Wording for the two sensor states. Change these to rename them everywhere
+// on this page (e.g. 'Active' / 'Inactive').
+const STATUS_LABELS = { online: 'Online', offline: 'Offline' };
+
+// Re-check every minute so a sensor that stops sending flips to Offline
+// without the admin having to refresh.
+const REFRESH_INTERVAL_MS = 60 * 1000;
+
+function formatDateTime(dateStr) {
+	if (!dateStr) return '';
+	return new Date(dateStr).toLocaleString(undefined, {
+		day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+	});
 }
 
+function formatAgo(dateStr, now) {
+	if (!dateStr) return 'No data yet';
+	const minutes = Math.floor((now - new Date(dateStr).getTime()) / 60000);
+	if (minutes < 1) return 'Just now';
+	if (minutes < 60) return `${minutes} min ago`;
+	const hours = Math.floor(minutes / 60);
+	if (hours < 24) return `${hours} h ago`;
+	const days = Math.floor(hours / 24);
+	return `${days} day${days === 1 ? '' : 's'} ago`;
+}
+
+function formatNumber(value, unit = '') {
+	if (value === null || value === undefined) return '—';
+	return `${Math.round(value * 10) / 10}${unit}`;
+}
 
 export default function AdminSensorTab() {
 	const { user } = useApp();
@@ -29,36 +54,44 @@ export default function AdminSensorTab() {
 	const isWide = Platform.OS === 'web' && width >= 768;
 
 	const [sensors, setSensors] = useState([]);
+	const [offlineAfter, setOfflineAfter] = useState(60);
+	const [checkedAt, setCheckedAt] = useState(Date.now());
 	const [loading, setLoading] = useState(true);
 	const [refreshing, setRefreshing] = useState(false);
 	const [search, setSearch] = useState('');
-	const [sortBy, setSortBy] = useState('id');
+	const [sortBy, setSortBy] = useState('room');
 	const [showSortMenu, setShowSortMenu] = useState(false);
 	const [offlineOnly, setOfflineOnly] = useState(false);
 
 	const authHeader = { Authorization: `Bearer ${user?.token}` };
 
-	const fetchSensors = useCallback(async () => {
+	const fetchSensors = useCallback(async ({ silent = false } = {}) => {
 		try {
 			const res = await fetch(`${API_BASE_URL}/api/sensors`, { headers: authHeader });
 			const data = await res.json();
 			if (!res.ok) throw new Error(data.error || 'Failed to fetch sensors');
-			const mapped = data.sensors.map((s) => ({
-				id: s.sensor_id,
-				roomId: s.room_id,
-				roomName: s.room_name,
-				type: s.sensor_type,
-				isOnline: s.status === 1 || s.status === true,
-				lastUpdated: formatDate(s.last_updated),
-			}));
-			setSensors(mapped);
+			setSensors(
+				data.sensors.map((s) => ({
+					roomId: s.room_id,
+					roomName: s.room_name,
+					bilikNumber: s.bilik_number,
+					isOnline: s.status === 'online',
+					lastReadingAt: s.last_reading_at,
+					latest: s.latest,
+				})),
+			);
+			setOfflineAfter(data.offline_after_minutes ?? 60);
+			setCheckedAt(data.checked_at ? new Date(data.checked_at).getTime() : Date.now());
 		} catch (err) {
-			Alert.alert('Error', err.message);
+			// A failed background refresh keeps the last good data on screen.
+			if (!silent) Alert.alert('Error', err.message);
 		}
 	}, [user?.token]);
 
 	useEffect(() => {
 		fetchSensors().finally(() => setLoading(false));
+		const timer = setInterval(() => fetchSensors({ silent: true }), REFRESH_INTERVAL_MS);
+		return () => clearInterval(timer);
 	}, [fetchSensors]);
 
 	const onRefresh = useCallback(async () => {
@@ -69,62 +102,69 @@ export default function AdminSensorTab() {
 
 	const totalSensors = sensors.length;
 	const onlineCount = sensors.filter((s) => s.isOnline).length;
-	const offlineCount = sensors.filter((s) => !s.isOnline).length;
+	const offlineCount = totalSensors - onlineCount;
 
 	const filtered = useMemo(() => {
 		const q = search.trim().toLowerCase();
 		const res = sensors.filter((s) => {
-			const matchSearch = s.type.toLowerCase().includes(q) || s.roomName.toLowerCase().includes(q);
+			const matchSearch = `${s.roomName} ${s.bilikNumber || ''}`.toLowerCase().includes(q);
 			const matchOffline = offlineOnly ? !s.isOnline : true;
 			return matchSearch && matchOffline;
 		});
+		const lastSeen = (s) => (s.lastReadingAt ? new Date(s.lastReadingAt).getTime() : 0);
 		return [...res].sort((a, b) => {
-			if (sortBy === 'type') return a.type.localeCompare(b.type);
-			if (sortBy === 'room') return a.roomId - b.roomId;
-			return a.id - b.id;
+			if (sortBy === 'status') return Number(a.isOnline) - Number(b.isOnline) || a.roomId - b.roomId;
+			if (sortBy === 'lastSeen') return lastSeen(b) - lastSeen(a);
+			return a.roomId - b.roomId;
 		});
 	}, [sensors, search, sortBy, offlineOnly]);
 
-	const sortLabel = sortBy === 'type' ? 'Sort by Type' : sortBy === 'room' ? 'Sort by Room' : 'Sort by ID';
-
+	const SORT_OPTIONS = [['room', 'Sort by Room'], ['status', 'Offline First'], ['lastSeen', 'Latest Data First']];
+	const sortLabel = SORT_OPTIONS.find(([val]) => val === sortBy)[1];
 
 	const renderItem = ({ item, index }) => {
 		const isEven = index % 2 === 0;
+		const { latest } = item;
 		return (
 			<View style={[styles.row, isEven && styles.rowEven]}>
-				<View style={styles.colId}>
-					<View style={styles.idBadge}>
-						<Text style={styles.idText}>#{item.id}</Text>
-					</View>
-				</View>
 				<View style={styles.colLarge}>
-					<View style={styles.sensorInfo}>
-						<View style={styles.sensorDetails}>
-							<Text style={styles.sensorType}>{item.type}</Text>
-							<Text style={styles.sensorRoom}>{item.roomName}</Text>
-						</View>
-					</View>
+					<Text style={styles.sensorType} numberOfLines={1}>{item.roomName}</Text>
+					<Text style={styles.sensorRoom} numberOfLines={1}>
+						{item.bilikNumber ? `${item.bilikNumber} · Room #${item.roomId}` : `Room #${item.roomId}`}
+					</Text>
 				</View>
 
-				<View style={styles.colSmall}>
-					<View style={styles.roomBadge}>
-						<Text style={styles.roomBadgeText}>#{item.roomId}</Text>
-					</View>
-				</View>
-
-				<View style={styles.colSmall}>
+				<View style={styles.colStatus}>
 					<View style={[styles.statusBadge, item.isOnline ? styles.statusBadgeOnline : styles.statusBadgeOffline]}>
 						<View style={[styles.statusDot, item.isOnline ? styles.statusDotOnline : styles.statusDotOffline]} />
 						<Text style={[styles.statusText, item.isOnline ? styles.statusTextOnline : styles.statusTextOffline]}>
-							{item.isOnline ? 'Online' : 'Offline'}
+							{item.isOnline ? STATUS_LABELS.online : STATUS_LABELS.offline}
 						</Text>
 					</View>
 				</View>
 
-				<View style={styles.colMedium}>
-					<Text style={styles.dateText}>{item.lastUpdated}</Text>
+				<View style={styles.colReading}>
+					{latest ? (
+						<>
+							<Text style={styles.readingText} numberOfLines={1}>
+								{formatNumber(latest.temperature, '°C')} · {formatNumber(latest.humidity, '%')}
+							</Text>
+							<Text style={styles.readingSubText} numberOfLines={1}>
+								Smoke {formatNumber(latest.smoke)} · CO {formatNumber(latest.co)}
+								{latest.flame_detected ? ' · 🔥 Flame' : ''}
+							</Text>
+						</>
+					) : (
+						<Text style={styles.readingSubText}>—</Text>
+					)}
 				</View>
 
+				<View style={styles.colDate}>
+					<Text style={[styles.agoText, !item.isOnline && item.lastReadingAt && styles.agoTextStale]}>
+						{formatAgo(item.lastReadingAt, checkedAt)}
+					</Text>
+					{item.lastReadingAt ? <Text style={styles.dateText}>{formatDateTime(item.lastReadingAt)}</Text> : null}
+				</View>
 			</View>
 		);
 	};
@@ -135,7 +175,9 @@ export default function AdminSensorTab() {
 
 			<View style={[styles.headerTop, isWide && styles.headerTopWeb]}>
 				<Text style={styles.headerTitle}>Sensor Management</Text>
-				<Text style={styles.headerSubtitle}>Monitor sensor status across all rooms</Text>
+				<Text style={styles.headerSubtitle}>
+					A sensor is {STATUS_LABELS.offline} when no data has been received for {offlineAfter} minutes
+				</Text>
 				<View style={styles.statsRow}>
 					<View style={styles.statCard}>
 						<View style={styles.statIconWrap}>
@@ -149,14 +191,14 @@ export default function AdminSensorTab() {
 							<Ionicons name="checkmark-circle-outline" size={20} color="rgba(255,255,255,0.9)" />
 						</View>
 						<Text style={styles.statNumber}>{onlineCount}</Text>
-						<Text style={styles.statLabel}>Online</Text>
+						<Text style={styles.statLabel}>{STATUS_LABELS.online}</Text>
 					</View>
 					<View style={styles.statCard}>
 						<View style={styles.statIconWrap}>
 							<Ionicons name="close-circle-outline" size={20} color="rgba(255,255,255,0.9)" />
 						</View>
 						<Text style={styles.statNumber}>{offlineCount}</Text>
-						<Text style={styles.statLabel}>Offline</Text>
+						<Text style={styles.statLabel}>{STATUS_LABELS.offline}</Text>
 					</View>
 				</View>
 			</View>
@@ -166,7 +208,7 @@ export default function AdminSensorTab() {
 					<View style={styles.searchBox}>
 						<Ionicons name="search" size={16} color="#9ca3af" />
 						<TextInput
-							placeholder="Search by sensor type or room..."
+							placeholder="Search by room or bilik..."
 							placeholderTextColor="#9ca3af"
 							value={search}
 							onChangeText={setSearch}
@@ -191,12 +233,14 @@ export default function AdminSensorTab() {
 								style={[styles.filterBtn, offlineOnly && styles.filterBtnActive]}
 								onPress={() => setOfflineOnly((v) => !v)}
 							>
-								<Text style={[styles.filterText, offlineOnly && styles.filterTextActive]}>Offline Only</Text>
+								<Text style={[styles.filterText, offlineOnly && styles.filterTextActive]}>
+									{STATUS_LABELS.offline} Only
+								</Text>
 							</TouchableOpacity>
 
 							{showSortMenu && (
 								<View style={styles.sortMenu}>
-									{[['id', 'Sort by ID'], ['room', 'Sort by Room'], ['type', 'Sort by Type']].map(([val, label]) => (
+									{SORT_OPTIONS.map(([val, label]) => (
 										<TouchableOpacity
 											key={val}
 											style={styles.sortOption}
@@ -209,16 +253,19 @@ export default function AdminSensorTab() {
 								</View>
 							)}
 						</View>
+
+						<Text style={styles.checkedText} numberOfLines={1}>
+							Checked {new Date(checkedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+						</Text>
 					</View>
 				</View>
 
 				<View style={styles.tableCard}>
 					<View style={styles.tableHeader}>
-						<Text style={[styles.headerCell, styles.idCell]}>ID</Text>
-						<Text style={[styles.headerCell, styles.nameCell]}>Sensor</Text>
-						<Text style={[styles.headerCell, styles.roomCell]}>Room</Text>
+						<Text style={[styles.headerCell, styles.nameCell]}>Room Sensor</Text>
 						<Text style={[styles.headerCell, styles.statusCell]}>Status</Text>
-						<Text style={[styles.headerCell, styles.dateCell]}>Last Updated</Text>
+						<Text numberOfLines={1} style={[styles.headerCell, styles.readingCell]}>Latest Reading</Text>
+						<Text numberOfLines={1} style={[styles.headerCell, styles.dateCell]}>Last Data Received</Text>
 					</View>
 
 					{loading ? (
@@ -226,7 +273,7 @@ export default function AdminSensorTab() {
 					) : (
 						<FlatList
 							data={filtered}
-							keyExtractor={(i) => String(i.id)}
+							keyExtractor={(i) => String(i.roomId)}
 							renderItem={renderItem}
 							refreshing={refreshing}
 							onRefresh={onRefresh}
@@ -271,11 +318,6 @@ const styles = StyleSheet.create({
 		borderRadius: 14,
 		borderWidth: 1.5,
 		borderColor: '#e5e7eb',
-		shadowColor: '#000',
-		shadowOpacity: 0.05,
-		shadowRadius: 8,
-		shadowOffset: { width: 0, height: 2 },
-		elevation: 2,
 		marginBottom: 12,
 		gap: 10,
 		shadowColor: '#000',
@@ -287,9 +329,9 @@ const styles = StyleSheet.create({
 	searchInput: { flex: 1, color: '#111827', fontSize: 14, outlineWidth: 0, outlineStyle: 'none' },
 	controlsWrap: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 10 },
 	leftControls: { flexDirection: 'row', alignItems: 'center', gap: 8, position: 'relative' },
-	sortBtn: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb', paddingHorizontal: 10, paddingVertical: 10, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 5, minWidth: 130 },
+	sortBtn: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb', paddingHorizontal: 10, paddingVertical: 10, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 5, minWidth: 150 },
 	sortText: { color: '#374151', fontSize: 13, fontWeight: '600', flex: 1 },
-	sortMenu: { position: 'absolute', top: 46, left: 0, backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', minWidth: 160, zIndex: 20, elevation: 6, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
+	sortMenu: { position: 'absolute', top: 46, left: 0, backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', minWidth: 180, zIndex: 20, elevation: 6, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
 	sortOption: { paddingVertical: 11, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
 	sortOptionText: { color: '#374151', fontSize: 14 },
 	sortOptionActive: { color: '#e53935', fontWeight: '600' },
@@ -297,38 +339,36 @@ const styles = StyleSheet.create({
 	filterBtnActive: { backgroundColor: '#fef3c7', borderColor: '#fcd34d' },
 	filterText: { color: '#374151', fontSize: 13, fontWeight: '600' },
 	filterTextActive: { color: '#92400e' },
+	checkedText: { color: '#9ca3af', fontSize: 12, marginLeft: 8, flexShrink: 1 },
 	tableCard: { flex: 1, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#e5e7eb', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
 	tableHeader: { flexDirection: 'row', paddingVertical: 11, paddingHorizontal: 16, backgroundColor: '#f8f9fb', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
 	headerCell: { color: '#9ca3af', fontWeight: '700', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.6 },
-	idCell: { flex: 0.6, textAlign: 'center' },
-	nameCell: { flex: 1.8 },
-	roomCell: { flex: 0.7, textAlign: 'center' },
+	nameCell: { flex: 1.6 },
 	statusCell: { flex: 0.9, textAlign: 'center' },
-	dateCell: { flex: 1.1, textAlign: 'center' },
+	readingCell: { flex: 1.4 },
+	dateCell: { flex: 1.2, textAlign: 'center' },
 	row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', backgroundColor: '#fff' },
 	rowEven: { backgroundColor: '#fafbfc' },
-	colId: { flex: 0.6, alignItems: 'center' },
-	colLarge: { flex: 1.8 },
-	colSmall: { flex: 0.7, alignItems: 'center' },
-	colMedium: { flex: 1.1, alignItems: 'center' },
-	idBadge: { backgroundColor: '#f3f4f6', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
-	idText: { fontSize: 12, fontWeight: '700', color: '#374151' },
-	sensorInfo: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-	sensorDetails: { flex: 1 },
+	colLarge: { flex: 1.6, paddingRight: 6 },
+	colStatus: { flex: 0.9, alignItems: 'center' },
+	colReading: { flex: 1.4, paddingHorizontal: 6 },
+	colDate: { flex: 1.2, alignItems: 'center' },
 	sensorType: { fontSize: 14, fontWeight: '600', color: '#111827' },
 	sensorRoom: { fontSize: 12, color: '#9ca3af', marginTop: 1 },
-	roomBadge: { backgroundColor: '#f3f4f6', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
-	roomBadgeText: { fontSize: 12, fontWeight: '700', color: '#374151' },
+	readingText: { fontSize: 13, fontWeight: '600', color: '#111827' },
+	readingSubText: { fontSize: 12, color: '#6b7280', marginTop: 1 },
 	statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20, gap: 4 },
 	statusBadgeOnline: { backgroundColor: '#d1fae5' },
-	statusBadgeOffline: { backgroundColor: '#f3f4f6' },
+	statusBadgeOffline: { backgroundColor: '#fee2e2' },
 	statusDot: { width: 6, height: 6, borderRadius: 3 },
 	statusDotOnline: { backgroundColor: '#10b981' },
-	statusDotOffline: { backgroundColor: '#9ca3af' },
+	statusDotOffline: { backgroundColor: '#ef4444' },
 	statusText: { fontSize: 12, fontWeight: '600' },
 	statusTextOnline: { color: '#047857' },
-	statusTextOffline: { color: '#6b7280' },
-	dateText: { color: '#9ca3af', fontSize: 12, textAlign: 'center' },
+	statusTextOffline: { color: '#b91c1c' },
+	agoText: { color: '#374151', fontSize: 12, fontWeight: '600', textAlign: 'center' },
+	agoTextStale: { color: '#b91c1c' },
+	dateText: { color: '#9ca3af', fontSize: 11, textAlign: 'center', marginTop: 1 },
 	loader: { marginTop: 32 },
 	emptyWrap: { alignItems: 'center', marginTop: 40, gap: 10 },
 	empty: { textAlign: 'center', color: '#9ca3af', fontSize: 14 },

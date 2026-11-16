@@ -5,6 +5,7 @@ const requireToken = require("../middleware/auth");
 
 userRouter.get("/", requireToken, userController.getUsers);
 userRouter.post("/", requireToken, userController.createUser);
+userRouter.put("/:id/assignment", requireToken, userController.assignUser);
 userRouter.delete("/", requireToken, userController.deleteUser);
 
 module.exports = userRouter;

@@ -3,6 +3,39 @@ const User = require("../models/User");
 const AdminUser = require("../models/adminUser");
 const supabase = require('../config/supabase');
 
+const parseId = (value) => {
+  if (value === undefined || value === null || value === "") return null;
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : NaN;
+};
+
+// Validates a bilik/room pair: a user must be placed in a specific room, and
+// that room must belong to the chosen bilik. Returns { error } or { bilikId, roomId }.
+const resolveAssignment = async (rawBilikId, rawRoomId) => {
+  const bilikId = parseId(rawBilikId);
+  const roomId = parseId(rawRoomId);
+
+  if (Number.isNaN(bilikId)) return { error: "Bilik must be a valid bilik ID" };
+  if (Number.isNaN(roomId)) return { error: "Room must be a valid room ID" };
+  if (bilikId === null) return { error: "Bilik is required" };
+  if (roomId === null) return { error: "Room is required" };
+
+  const [bilikResult, roomResult] = await Promise.all([
+    supabase.from("bilik").select("bilik_id").eq("bilik_id", bilikId).maybeSingle(),
+    supabase.from("rooms").select("room_id, bilik_id").eq("room_id", roomId).maybeSingle(),
+  ]);
+  if (bilikResult.error) throw bilikResult.error;
+  if (roomResult.error) throw roomResult.error;
+
+  if (!bilikResult.data) return { error: "Bilik not found" };
+  if (!roomResult.data) return { error: "Room not found" };
+  if (roomResult.data.bilik_id !== bilikId) {
+    return { error: "Room does not belong to the selected bilik" };
+  }
+
+  return { bilikId, roomId };
+};
+
 exports.getUsers = async (req, res) => {
   try {
     const users = await AdminUser.getAllUsers();
@@ -25,6 +58,31 @@ exports.deleteUser = async (req, res) => {
   }
 };
 
+exports.assignUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const assignment = await resolveAssignment(
+      req.body.bilik_id,
+      req.body.room_id,
+    );
+    if (assignment.error) {
+      return res.status(400).json({ error: assignment.error });
+    }
+
+    const user = await AdminUser.assignUser(
+      id,
+      assignment.bilikId,
+      assignment.roomId,
+    );
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    res.json({ message: "User assignment updated", user });
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+    console.error(error);
+  }
+};
+
 exports.createUser = async (req, res) => {
   try {
     const { email, password, full_name } = req.body;
@@ -33,6 +91,16 @@ exports.createUser = async (req, res) => {
       return res.status(400).json({
         error: "Email, password and full name are required",
       });
+    }
+
+    // Validate before creating the auth account so a bad bilik/room
+    // doesn't leave an orphaned auth user behind.
+    const assignment = await resolveAssignment(
+      req.body.bilik_id,
+      req.body.room_id,
+    );
+    if (assignment.error) {
+      return res.status(400).json({ error: assignment.error });
     }
 
     const { data: authData, error: authError } =
@@ -59,6 +127,8 @@ exports.createUser = async (req, res) => {
         user_id: userId,
         email,
         full_name,
+        bilik_id: assignment.bilikId,
+        room_id: assignment.roomId,
       })
       .select()
       .single();
@@ -102,6 +172,8 @@ exports.createUser = async (req, res) => {
         email,
         full_name,
         role: "user",
+        bilik_id: assignment.bilikId,
+        room_id: assignment.roomId,
       },
     });
   } catch (err) {
