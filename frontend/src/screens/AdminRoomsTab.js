@@ -24,11 +24,24 @@ function formatDate(dateStr) {
   return new Date(dateStr).toISOString().slice(0, 10);
 }
 
+// Devices that can be installed in a room. `key` is the field on the room
+// (and in the API request); `column` is what the API returns.
+const DEVICES = [
+  { key: "hasCamera", column: "has_camera", label: "Camera", icon: "videocam-outline" },
+  { key: "hasSensor", column: "has_sensor", label: "Sensor", icon: "pulse-outline" },
+  { key: "hasWaterpump", column: "has_waterpump", label: "Water Pump", icon: "water-outline" },
+];
+
+const missingDevices = (room) => DEVICES.filter((d) => !room[d.key]);
+
 const EMPTY_FORM = {
   name: "",
   status: "0",
   cameraEnabled: false,
   bilikId: null,
+  hasCamera: false,
+  hasSensor: false,
+  hasWaterpump: false,
 };
 
 export default function AdminRoomsTab() {
@@ -44,6 +57,8 @@ export default function AdminRoomsTab() {
   const [sortBy, setSortBy] = useState("name");
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [alertOnly, setAlertOnly] = useState(false);
+  const [missingOnly, setMissingOnly] = useState(false);
+  const [residentsByRoom, setResidentsByRoom] = useState({});
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -56,18 +71,29 @@ export default function AdminRoomsTab() {
 
   const fetchRooms = useCallback(async () => {
     try {
-      const [roomsRes, bilikRes] = await Promise.all([
+      const [roomsRes, bilikRes, usersRes] = await Promise.all([
         fetch(`${API_BASE_URL}/api/rooms`, { headers: authHeader }),
         fetch(`${API_BASE_URL}/api/bilik`, { headers: authHeader }),
+        fetch(`${API_BASE_URL}/api/user`, { headers: authHeader }),
       ]);
-      const [roomsData, bilikData] = await Promise.all([
+      const [roomsData, bilikData, usersData] = await Promise.all([
         roomsRes.json(),
         bilikRes.json(),
+        usersRes.json(),
       ]);
       if (!roomsRes.ok)
         throw new Error(roomsData.error || "Failed to fetch rooms");
       if (!bilikRes.ok)
         throw new Error(bilikData.error || "Failed to fetch bilik");
+      if (!usersRes.ok)
+        throw new Error(usersData.error || "Failed to fetch users");
+      const byRoom = {};
+      for (const u of usersData.users) {
+        if (u.room_id == null) continue;
+        if (!byRoom[u.room_id]) byRoom[u.room_id] = [];
+        byRoom[u.room_id].push(u.full_name);
+      }
+      setResidentsByRoom(byRoom);
       setBilikOptions(
         bilikData.bilik.map((item) => ({
           id: item.bilik_id,
@@ -81,6 +107,7 @@ export default function AdminRoomsTab() {
         bilikId: r.bilik_id,
         isAlert: r.status === "1" || r.status === 1,
         cameraEnabled: r.camera_enabled === 1 || r.camera_enabled === true,
+        ...Object.fromEntries(DEVICES.map((d) => [d.key, r[d.column] === true])),
         lastUpdated: formatDate(r.last_updated),
       }));
       setRooms(mapped);
@@ -101,7 +128,7 @@ export default function AdminRoomsTab() {
 
   const totalRooms = rooms.length;
   const alertCount = rooms.filter((r) => r.isAlert).length;
-  const cameraCount = rooms.filter((r) => r.cameraEnabled).length;
+  const missingCount = rooms.filter((r) => missingDevices(r).length > 0).length;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -109,12 +136,14 @@ export default function AdminRoomsTab() {
       const associatedBilik = bilikOptions.find(
         (item) => item.id === r.bilikId,
       );
+      const residents = (residentsByRoom[r.id] || []).join(" ");
       const matchSearch =
-        `${r.name} ${associatedBilik?.number || ""} ${associatedBilik?.household || ""}`
+        `${r.name} ${associatedBilik?.number || ""} ${associatedBilik?.household || ""} ${residents}`
           .toLowerCase()
           .includes(q);
       const matchAlert = alertOnly ? r.isAlert : true;
-      return matchSearch && matchAlert;
+      const matchMissing = missingOnly ? missingDevices(r).length > 0 : true;
+      return matchSearch && matchAlert && matchMissing;
     });
     return [...res].sort((a, b) => {
       if (sortBy === "updated")
@@ -123,7 +152,7 @@ export default function AdminRoomsTab() {
         );
       return a.name.localeCompare(b.name);
     });
-  }, [rooms, bilikOptions, search, sortBy, alertOnly]);
+  }, [rooms, bilikOptions, residentsByRoom, search, sortBy, alertOnly, missingOnly]);
 
   const sortLabel = sortBy === "updated" ? "Sort by Date" : "Sort by Name";
 
@@ -142,6 +171,9 @@ export default function AdminRoomsTab() {
       status: room.isAlert ? "1" : "0",
       cameraEnabled: room.cameraEnabled,
       bilikId: room.bilikId ?? null,
+      hasCamera: room.hasCamera,
+      hasSensor: room.hasSensor,
+      hasWaterpump: room.hasWaterpump,
     });
     setBilikMenuOpen(false);
     setFormError("");
@@ -168,6 +200,9 @@ export default function AdminRoomsTab() {
           status: form.status,
           cameraEnabled: form.cameraEnabled,
           bilik_id: form.bilikId,
+          hasCamera: form.hasCamera,
+          hasSensor: form.hasSensor,
+          hasWaterpump: form.hasWaterpump,
         }),
       });
       const data = await res.json();
@@ -221,6 +256,7 @@ export default function AdminRoomsTab() {
     const associatedBilik = bilikOptions.find(
       (option) => option.id === item.bilikId,
     );
+    const residents = residentsByRoom[item.id] || [];
     return (
       <View style={[styles.row, isEven && styles.rowEven]}>
         <View style={styles.colLarge}>
@@ -235,6 +271,22 @@ export default function AdminRoomsTab() {
                   ? `Bilik: ${associatedBilik.number}${associatedBilik.household ? ` · ${associatedBilik.household}` : ""}`
                   : "No Bilik assigned"}
               </Text>
+              <View style={styles.residentRow}>
+                <Ionicons
+                  name="people-outline"
+                  size={11}
+                  color={residents.length ? "#6b7280" : "#b45309"}
+                />
+                <Text
+                  style={[
+                    styles.residentText,
+                    !residents.length && styles.residentTextNone,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {residents.length ? residents.join(", ") : "No residents"}
+                </Text>
+              </View>
             </View>
           </View>
         </View>
@@ -263,31 +315,34 @@ export default function AdminRoomsTab() {
           </View>
         </View>
 
-        <View style={styles.colSmall}>
-          <View
-            style={[
-              styles.badge,
-              item.cameraEnabled ? styles.badgeCamera : styles.badgeNoCamera,
-            ]}
-          >
-            <Ionicons
-              name={
-                item.cameraEnabled ? "videocam-outline" : "videocam-off-outline"
-              }
-              size={12}
-              color={item.cameraEnabled ? "#0369a1" : "#9ca3af"}
-            />
-            <Text
-              style={[
-                styles.badgeText,
-                item.cameraEnabled
-                  ? styles.badgeTextCamera
-                  : styles.badgeTextNoCamera,
-              ]}
-            >
-              {item.cameraEnabled ? "Yes" : "No"}
-            </Text>
-          </View>
+        <View style={styles.colDevices}>
+          {DEVICES.map((d) => {
+            const installed = item[d.key];
+            return (
+              <View
+                key={d.key}
+                style={[
+                  styles.deviceChip,
+                  installed ? styles.deviceChipOn : styles.deviceChipOff,
+                ]}
+                accessibilityLabel={`${d.label} ${installed ? "installed" : "not installed"}`}
+              >
+                <Ionicons
+                  name={installed ? "checkmark-circle" : "close-circle-outline"}
+                  size={12}
+                  color={installed ? "#0369a1" : "#9ca3af"}
+                />
+                <Text
+                  style={[
+                    styles.deviceChipText,
+                    installed ? styles.deviceChipTextOn : styles.deviceChipTextOff,
+                  ]}
+                >
+                  {d.label}
+                </Text>
+              </View>
+            );
+          })}
         </View>
 
         <View style={styles.colMedium}>
@@ -406,6 +461,44 @@ export default function AdminRoomsTab() {
                 </View>
               ) : null}
 
+              <Text style={styles.fieldLabel}>Installed Devices</Text>
+              <View style={styles.deviceToggles}>
+                {DEVICES.map((d) => {
+                  const on = form[d.key];
+                  return (
+                    <TouchableOpacity
+                      key={d.key}
+                      style={[styles.deviceToggle, on && styles.deviceToggleOn]}
+                      onPress={() =>
+                        setForm((current) => ({ ...current, [d.key]: !current[d.key] }))
+                      }
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: on }}
+                      accessibilityLabel={`${d.label} installed`}
+                    >
+                      <Ionicons
+                        name={d.icon}
+                        size={18}
+                        color={on ? "#0369a1" : "#6b7280"}
+                      />
+                      <Text
+                        style={[
+                          styles.deviceToggleText,
+                          on && styles.deviceToggleTextOn,
+                        ]}
+                      >
+                        {d.label}
+                      </Text>
+                      <Ionicons
+                        name={on ? "checkbox" : "square-outline"}
+                        size={20}
+                        color={on ? "#0369a1" : "#9ca3af"}
+                      />
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
               {formError ? (
                 <View style={styles.formErrorWrap}>
                   <Ionicons
@@ -467,13 +560,13 @@ export default function AdminRoomsTab() {
           <View style={styles.statCard}>
             <View style={styles.statIconWrap}>
               <Ionicons
-                name="videocam-outline"
+                name="hardware-chip-outline"
                 size={20}
                 color="rgba(255,255,255,0.9)"
               />
             </View>
-            <Text style={styles.statNumber}>{cameraCount}</Text>
-            <Text style={styles.statLabel}>Camera On</Text>
+            <Text style={styles.statNumber}>{missingCount}</Text>
+            <Text style={styles.statLabel}>Missing Devices</Text>
           </View>
         </View>
       </View>
@@ -483,7 +576,7 @@ export default function AdminRoomsTab() {
           <View style={styles.searchBox}>
             <Ionicons name="search" size={16} color="#9ca3af" />
             <TextInput
-              placeholder="Search by room name..."
+              placeholder="Search by room, bilik or resident..."
               placeholderTextColor="#9ca3af"
               value={search}
               onChangeText={setSearch}
@@ -524,6 +617,21 @@ export default function AdminRoomsTab() {
                   ]}
                 >
                   Alert Only
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.filterBtn, missingOnly && styles.filterBtnActive]}
+                onPress={() => setMissingOnly((v) => !v)}
+              >
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.filterText,
+                    missingOnly && styles.filterTextActive,
+                  ]}
+                >
+                  Missing Devices
                 </Text>
               </TouchableOpacity>
 
@@ -569,7 +677,7 @@ export default function AdminRoomsTab() {
           <View style={styles.tableHeader}>
             <Text style={[styles.headerCell, styles.nameCell]}>Room</Text>
             <Text style={[styles.headerCell, styles.statusCell]}>Status</Text>
-            <Text style={[styles.headerCell, styles.cameraCell]}>Camera</Text>
+            <Text style={[styles.headerCell, styles.devicesCell]}>Devices</Text>
             <Text style={[styles.headerCell, styles.dateCell]}>
               Last Updated
             </Text>
@@ -786,7 +894,7 @@ const styles = StyleSheet.create({
   },
   nameCell: { flex: 1.7 },
   statusCell: { flex: 0.9, textAlign: "center" },
-  cameraCell: { flex: 0.9, textAlign: "center" },
+  devicesCell: { flex: 1.6, textAlign: "center" },
   dateCell: { flex: 1.1, textAlign: "center" },
   actionCell: { flex: 0.8, textAlign: "center" },
   row: {
@@ -802,6 +910,49 @@ const styles = StyleSheet.create({
   colLarge: { flex: 1.7 },
   colSmall: { flex: 0.9, alignItems: "center" },
   colMedium: { flex: 1.1, alignItems: "center" },
+  colDevices: {
+    flex: 1.6,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 4,
+  },
+  deviceChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  deviceChipOn: { backgroundColor: "#e0f2fe" },
+  deviceChipOff: { backgroundColor: "#f3f4f6" },
+  deviceChipText: { fontSize: 11, fontWeight: "600" },
+  deviceChipTextOn: { color: "#0369a1" },
+  deviceChipTextOff: { color: "#9ca3af" },
+  residentRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 2,
+  },
+  residentText: { color: "#6b7280", fontSize: 11, flex: 1 },
+  residentTextNone: { color: "#b45309" },
+  deviceToggles: { gap: 8 },
+  deviceToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    backgroundColor: "#f9fafb",
+  },
+  deviceToggleOn: { borderColor: "#7dd3fc", backgroundColor: "#f0f9ff" },
+  deviceToggleText: { flex: 1, color: "#374151", fontSize: 14 },
+  deviceToggleTextOn: { color: "#0369a1", fontWeight: "600" },
   colAction: { flex: 0.8, alignItems: "center" },
   roomInfo: { flexDirection: "row", alignItems: "center", gap: 10 },
   roomDetails: { flex: 1 },
@@ -825,16 +976,12 @@ const styles = StyleSheet.create({
   },
   badgeSafe: { backgroundColor: "#dcfce7" },
   badgeAlert: { backgroundColor: "#fee2e2" },
-  badgeCamera: { backgroundColor: "#e0f2fe" },
-  badgeNoCamera: { backgroundColor: "#f3f4f6" },
   dot: { width: 6, height: 6, borderRadius: 3 },
   dotSafe: { backgroundColor: "#16a34a" },
   dotAlert: { backgroundColor: "#e53935" },
   badgeText: { fontSize: 12, fontWeight: "600", textTransform: "capitalize" },
   badgeTextSafe: { color: "#15803d" },
   badgeTextAlert: { color: "#b91c1c" },
-  badgeTextCamera: { color: "#0369a1" },
-  badgeTextNoCamera: { color: "#6b7280" },
   dateText: { color: "#9ca3af", fontSize: 12, textAlign: "center" },
   actionButtons: { flexDirection: "row", alignItems: "center", gap: 6 },
   editBtn: { padding: 7, backgroundColor: "#eff6ff", borderRadius: 8 },
