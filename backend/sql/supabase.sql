@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS rooms (
 -- 3. USERS
 -- =========================================================
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     bilik_id INTEGER NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
@@ -56,6 +56,21 @@ CREATE TABLE users (
         REFERENCES Bilik(bilik_id)
         ON DELETE CASCADE
 );
+
+-- The room a user lives in. Added with ALTER (not in CREATE TABLE above) so
+-- rerunning this file also upgrades an existing users table. Safe to rerun.
+-- Room must belong to the user's bilik (enforced in the backend).
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS room_id INTEGER;
+
+ALTER TABLE users
+    DROP CONSTRAINT IF EXISTS users_room_fk;
+
+ALTER TABLE users
+    ADD CONSTRAINT users_room_fk
+        FOREIGN KEY (room_id)
+        REFERENCES rooms(room_id)
+        ON DELETE SET NULL;
 
 
 -- =========================================================

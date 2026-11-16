@@ -38,7 +38,103 @@ function formatDate(dateStr) {
 	return new Date(dateStr).toISOString().slice(0, 10);
 }
 
-const EMPTY_FORM = { fullName: '', email: '', password: '', role: 'User' };
+const EMPTY_FORM = { fullName: '', email: '', password: '', role: 'User', bilikId: null, roomId: null };
+
+function formatBilik(bilik) {
+	if (!bilik) return '';
+	return bilik.household ? `${bilik.number} · ${bilik.household}` : bilik.number;
+}
+
+// A normal user must live in a specific room; admins don't need one.
+function needsRoom(u) {
+	return u.role !== 'admin' && u.roomId == null;
+}
+
+// Bilik dropdown followed by a Room dropdown limited to rooms in that bilik.
+// Both are required. Changing the bilik clears the room so the pair stays consistent.
+function AssignmentPicker({ bilikOptions, roomOptions, bilikId, roomId, onChange }) {
+	const [openMenu, setOpenMenu] = useState(null);
+	const selectedBilik = bilikOptions.find((b) => b.id === bilikId);
+	const roomsInBilik = roomOptions.filter((r) => r.bilikId === bilikId);
+	const selectedRoom = roomsInBilik.find((r) => r.id === roomId);
+	const roomDisabled = bilikId == null;
+
+	const toggle = (menu) => setOpenMenu((cur) => (cur === menu ? null : menu));
+
+	return (
+		<View>
+			<Text style={styles.fieldLabel}>Bilik</Text>
+			<TouchableOpacity
+				style={styles.selectBox}
+				onPress={() => toggle('bilik')}
+				accessibilityRole="button"
+				accessibilityLabel="Select bilik"
+			>
+				<Text style={[styles.selectText, !selectedBilik && styles.selectPlaceholder]} numberOfLines={1}>
+					{selectedBilik ? formatBilik(selectedBilik) : 'Select a bilik'}
+				</Text>
+				<Ionicons name={openMenu === 'bilik' ? 'chevron-up' : 'chevron-down'} size={16} color="#6b7280" />
+			</TouchableOpacity>
+			{openMenu === 'bilik' ? (
+				<View style={styles.selectOptions}>
+					<ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+						{bilikOptions.map((b) => (
+							<TouchableOpacity
+								key={b.id}
+								style={styles.selectOption}
+								onPress={() => {
+									onChange({ bilikId: b.id, roomId: b.id === bilikId ? roomId : null });
+									setOpenMenu(null);
+								}}
+							>
+								<Text style={[styles.selectOptionText, b.id === bilikId && styles.selectOptionActive]} numberOfLines={1}>
+									{formatBilik(b)}
+								</Text>
+							</TouchableOpacity>
+						))}
+					</ScrollView>
+				</View>
+			) : null}
+
+			<Text style={styles.fieldLabel}>Room</Text>
+			<TouchableOpacity
+				style={[styles.selectBox, roomDisabled && styles.selectBoxDisabled]}
+				onPress={() => toggle('room')}
+				disabled={roomDisabled}
+				accessibilityRole="button"
+				accessibilityLabel="Select room"
+			>
+				<Text style={[styles.selectText, !selectedRoom && styles.selectPlaceholder]} numberOfLines={1}>
+					{roomDisabled
+						? 'Select a bilik first'
+						: selectedRoom
+							? selectedRoom.name
+							: roomsInBilik.length
+								? 'Select a room'
+								: 'No rooms in this bilik — add one in the Rooms tab'}
+				</Text>
+				<Ionicons name={openMenu === 'room' ? 'chevron-up' : 'chevron-down'} size={16} color="#6b7280" />
+			</TouchableOpacity>
+			{openMenu === 'room' && !roomDisabled ? (
+				<View style={styles.selectOptions}>
+					<ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+						{roomsInBilik.map((r) => (
+							<TouchableOpacity
+								key={r.id}
+								style={styles.selectOption}
+								onPress={() => { onChange({ bilikId, roomId: r.id }); setOpenMenu(null); }}
+							>
+								<Text style={[styles.selectOptionText, r.id === roomId && styles.selectOptionActive]} numberOfLines={1}>
+									{r.name}
+								</Text>
+							</TouchableOpacity>
+						))}
+					</ScrollView>
+				</View>
+			) : null}
+		</View>
+	);
+}
 
 export default function AdminUserScreen() {
 	const { user } = useApp();
@@ -57,21 +153,55 @@ export default function AdminUserScreen() {
 	const [formError, setFormError] = useState('');
 	const [submitting, setSubmitting] = useState(false);
 
+	const [bilikOptions, setBilikOptions] = useState([]);
+	const [roomOptions, setRoomOptions] = useState([]);
+
+	const [assignTarget, setAssignTarget] = useState(null);
+	const [assignForm, setAssignForm] = useState({ bilikId: null, roomId: null });
+	const [assignError, setAssignError] = useState('');
+	const [assigning, setAssigning] = useState(false);
+	const [unassignedOnly, setUnassignedOnly] = useState(false);
+
 	const authHeader = { Authorization: `Bearer ${user?.token}` };
 
 	const fetchUsers = useCallback(async () => {
 		try {
-			const res = await fetch(`${API_BASE_URL}/api/user`, {
-				headers: authHeader,
-			});
-			const data = await res.json();
-			if (!res.ok) throw new Error(data.error || 'Failed to fetch users');
+			const [usersRes, bilikRes, roomsRes] = await Promise.all([
+				fetch(`${API_BASE_URL}/api/user`, { headers: authHeader }),
+				fetch(`${API_BASE_URL}/api/bilik`, { headers: authHeader }),
+				fetch(`${API_BASE_URL}/api/rooms`, { headers: authHeader }),
+			]);
+			const [data, bilikData, roomsData] = await Promise.all([
+				usersRes.json(),
+				bilikRes.json(),
+				roomsRes.json(),
+			]);
+			if (!usersRes.ok) throw new Error(data.error || 'Failed to fetch users');
+			if (!bilikRes.ok) throw new Error(bilikData.error || 'Failed to fetch bilik');
+			if (!roomsRes.ok) throw new Error(roomsData.error || 'Failed to fetch rooms');
+
+			setBilikOptions(
+				bilikData.bilik.map((b) => ({
+					id: b.bilik_id,
+					number: b.bilik_number,
+					household: b.household_name,
+				})),
+			);
+			setRoomOptions(
+				roomsData.rooms.map((r) => ({
+					id: r.room_id,
+					name: r.name,
+					bilikId: r.bilik_id,
+				})),
+			);
 			const mapped = data.users.map((u) => ({
 				id: u.user_id,
 				name: u.full_name,
 				email: u.email,
-				role: u.role.toLowerCase(),
+				role: (u.role || 'user').toLowerCase(),
 				created: formatDate(u.created_at),
+				bilikId: u.bilik_id ?? null,
+				roomId: u.room_id ?? null,
 			}));
 			setUsers(mapped);
 		} catch (err) {
@@ -89,20 +219,29 @@ export default function AdminUserScreen() {
 		setRefreshing(false);
 	}, [fetchUsers]);
 
-	const activeCount = users.length;
 	const adminCount = users.filter((u) => u.role === 'admin').length;
 	const totalUsers = users.length;
+	const unassignedCount = users.filter(needsRoom).length;
+
+	useEffect(() => {
+		if (unassignedCount === 0) setUnassignedOnly(false);
+	}, [unassignedCount]);
 
 	const filtered = useMemo(() => {
 		const q = search.trim().toLowerCase();
-		const res = users.filter((u) => `${u.name} ${u.email}`.toLowerCase().includes(q));
+		const res = users.filter((u) => {
+			if (unassignedOnly && !needsRoom(u)) return false;
+			const bilik = bilikOptions.find((b) => b.id === u.bilikId);
+			const room = roomOptions.find((r) => r.id === u.roomId);
+			return `${u.name} ${u.email} ${formatBilik(bilik)} ${room?.name || ''}`.toLowerCase().includes(q);
+		});
 		return [...res].sort((a, b) => {
 			if (sortBy === 'created') return new Date(a.created).getTime() - new Date(b.created).getTime();
 			const nameResult = a.name.localeCompare(b.name);
 			if (nameResult !== 0) return nameResult;
 			return new Date(a.created).getTime() - new Date(b.created).getTime();
 		});
-	}, [users, search, sortBy]);
+	}, [users, bilikOptions, roomOptions, search, sortBy, unassignedOnly]);
 
 	const sortLabel = useMemo(() => (sortBy === 'created' ? 'Sort by Date' : 'Sort by Name'), [sortBy]);
 
@@ -142,15 +281,59 @@ export default function AdminUserScreen() {
 		setModalVisible(true);
 	};
 
+	const openAssignModal = (target) => {
+		setAssignTarget(target);
+		setAssignForm({ bilikId: target.bilikId, roomId: target.roomId });
+		setAssignError('');
+	};
+
+	const handleAssign = async () => {
+		if (!assignTarget) return;
+		setAssignError('');
+		if (assignForm.bilikId == null || assignForm.roomId == null) {
+			setAssignError('Select both a bilik and the room this user lives in.');
+			return;
+		}
+		setAssigning(true);
+		try {
+			const res = await fetch(`${API_BASE_URL}/api/user/${assignTarget.id}/assignment`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json', ...authHeader },
+				body: JSON.stringify({ bilik_id: assignForm.bilikId, room_id: assignForm.roomId }),
+			});
+			const data = await res.json();
+			if (!res.ok) {
+				setAssignError(data.error || 'Failed to update assignment');
+				return;
+			}
+			setUsers((cur) =>
+				cur.map((u) =>
+					u.id === assignTarget.id
+						? { ...u, bilikId: data.user.bilik_id ?? null, roomId: data.user.room_id ?? null }
+						: u,
+				),
+			);
+			setAssignTarget(null);
+		} catch {
+			setAssignError('Unable to connect to server.');
+		} finally {
+			setAssigning(false);
+		}
+	};
+
 	const handleAddUser = async () => {
 		setFormError('');
 		if (!form.fullName.trim() || !form.email.trim() || !form.password) {
 			setFormError('Full name, email, and password are required.');
 			return;
 		}
+		if (form.bilikId == null || form.roomId == null) {
+			setFormError('Assign the user to a bilik and room.');
+			return;
+		}
 		setSubmitting(true);
 		try {
-			const res = await fetch(`${API_BASE_URL}/api/user/add-user`, {
+			const res = await fetch(`${API_BASE_URL}/api/user`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', ...authHeader },
 				body: JSON.stringify({
@@ -158,6 +341,8 @@ export default function AdminUserScreen() {
 					email: form.email.trim().toLowerCase(),
 					password: form.password,
 					role: form.role,
+					bilik_id: form.bilikId,
+					room_id: form.roomId,
 				}),
 			});
 			const data = await res.json();
@@ -178,9 +363,12 @@ export default function AdminUserScreen() {
 		const avatarColor = getAvatarColor(item.name);
 		const initials = getInitials(item.name);
 		const isEven = index % 2 === 0;
+		const bilik = bilikOptions.find((b) => b.id === item.bilikId);
+		const room = roomOptions.find((r) => r.id === item.roomId);
+		const missingRoom = needsRoom(item);
 
 		return (
-			<View style={[styles.row, isEven && styles.rowEven]}>
+			<View style={[styles.row, isEven && styles.rowEven, missingRoom && styles.rowUnassigned]}>
 				<View style={styles.colLarge}>
 					<View style={styles.userInfo}>
 						<View style={[styles.avatar, { backgroundColor: avatarColor }]}>
@@ -201,12 +389,39 @@ export default function AdminUserScreen() {
 					</View>
 				</View>
 
+				<View style={styles.colAssign}>
+					{missingRoom ? (
+						<TouchableOpacity
+							style={styles.noRoomBadge}
+							onPress={() => openAssignModal(item)}
+							accessibilityLabel={`${item.name} has no room. Assign one`}
+						>
+							<Ionicons name="alert-circle" size={13} color="#b45309" />
+							<Text style={styles.noRoomText} numberOfLines={1}>No room</Text>
+						</TouchableOpacity>
+					) : room ? (
+						<>
+							<Text style={styles.assignBilikText} numberOfLines={1}>{bilik?.number ?? '—'}</Text>
+							<Text style={styles.assignRoomText} numberOfLines={1}>{room.name}</Text>
+						</>
+					) : (
+						<Text style={styles.unassignedText}>—</Text>
+					)}
+				</View>
+
 				<View style={styles.colMedium}>
 					<Text style={styles.createdText}>{item.created}</Text>
 				</View>
 
 				<View style={styles.colAction}>
 					<View style={styles.actionButtons}>
+						<TouchableOpacity
+							style={[styles.assignBtn, missingRoom && styles.assignBtnUrgent]}
+							onPress={() => openAssignModal(item)}
+							accessibilityLabel={`Assign ${item.name} to bilik and room`}
+						>
+							<Ionicons name="home-outline" size={16} color={missingRoom ? '#b45309' : '#0369a1'} />
+						</TouchableOpacity>
 						<TouchableOpacity
 							style={styles.deleteBtn}
 							onPress={() => handleDeleteUser(item.id, item.name)}
@@ -277,6 +492,14 @@ export default function AdminUserScreen() {
 								))}
 							</View>
 
+							<AssignmentPicker
+								bilikOptions={bilikOptions}
+								roomOptions={roomOptions}
+								bilikId={form.bilikId}
+								roomId={form.roomId}
+								onChange={(next) => setForm((f) => ({ ...f, ...next }))}
+							/>
+
 							{formError ? (
 								<View style={styles.formErrorWrap}>
 									<Ionicons name="alert-circle-outline" size={14} color="#dc2626" />
@@ -293,6 +516,52 @@ export default function AdminUserScreen() {
 									<ActivityIndicator color="#fff" size="small" />
 								) : (
 									<Text style={styles.submitBtnText}>Create User</Text>
+								)}
+							</TouchableOpacity>
+						</ScrollView>
+					</View>
+				</View>
+			</Modal>
+
+			<Modal visible={assignTarget != null} animationType="slide" transparent onRequestClose={() => setAssignTarget(null)}>
+				<View style={styles.modalOverlay}>
+					<View style={[styles.modalCard, isWide && styles.modalCardWeb]}>
+						<View style={styles.modalHeader}>
+							<View style={styles.modalTitleWrap}>
+								<Text style={styles.modalTitle}>Assign Bilik & Room</Text>
+								<Text style={styles.modalSubtitle} numberOfLines={1}>{assignTarget?.name}</Text>
+							</View>
+							<TouchableOpacity onPress={() => setAssignTarget(null)}>
+								<Ionicons name="close" size={22} color="#374151" />
+							</TouchableOpacity>
+						</View>
+
+						<ScrollView keyboardShouldPersistTaps="handled">
+							<AssignmentPicker
+								key={assignTarget?.id}
+								bilikOptions={bilikOptions}
+								roomOptions={roomOptions}
+								bilikId={assignForm.bilikId}
+								roomId={assignForm.roomId}
+								onChange={(next) => setAssignForm(next)}
+							/>
+
+							{assignError ? (
+								<View style={styles.formErrorWrap}>
+									<Ionicons name="alert-circle-outline" size={14} color="#dc2626" />
+									<Text style={styles.formErrorText}>{assignError}</Text>
+								</View>
+							) : null}
+
+							<TouchableOpacity
+								style={[styles.submitBtn, assigning && styles.submitBtnDisabled]}
+								onPress={handleAssign}
+								disabled={assigning}
+							>
+								{assigning ? (
+									<ActivityIndicator color="#fff" size="small" />
+								) : (
+									<Text style={styles.submitBtnText}>Save Assignment</Text>
 								)}
 							</TouchableOpacity>
 						</ScrollView>
@@ -325,6 +594,18 @@ export default function AdminUserScreen() {
 						<Text style={styles.statNumber}>{totalUsers - adminCount}</Text>
 						<Text style={styles.statLabel}>Normal Users</Text>
 					</View>
+					<TouchableOpacity
+						style={[styles.statCard, unassignedCount > 0 && styles.statCardWarn]}
+						onPress={() => unassignedCount > 0 && setUnassignedOnly(true)}
+						disabled={unassignedCount === 0}
+						accessibilityLabel={`${unassignedCount} users without a room`}
+					>
+						<View style={styles.statIconWrap}>
+							<Ionicons name="home-outline" size={20} color="rgba(255,255,255,0.9)" />
+						</View>
+						<Text style={styles.statNumber}>{unassignedCount}</Text>
+						<Text style={styles.statLabel}>No Room</Text>
+					</TouchableOpacity>
 				</View>
 			</View>
 
@@ -383,10 +664,28 @@ export default function AdminUserScreen() {
 					</View>
 				</View>
 
+				{unassignedCount > 0 ? (
+					<View style={styles.warnBanner}>
+						<Ionicons name="warning-outline" size={18} color="#b45309" />
+						<Text style={styles.warnBannerText}>
+							{unassignedCount === 1
+								? '1 user has not been assigned to a room.'
+								: `${unassignedCount} users have not been assigned to a room.`}
+						</Text>
+						<TouchableOpacity
+							style={styles.warnBannerBtn}
+							onPress={() => setUnassignedOnly((v) => !v)}
+						>
+							<Text style={styles.warnBannerBtnText}>{unassignedOnly ? 'Show all' : 'Review'}</Text>
+						</TouchableOpacity>
+					</View>
+				) : null}
+
 				<View style={styles.tableCard}>
 					<View style={styles.tableHeader}>
 						<Text style={[styles.headerCell, styles.nameCell]}>User</Text>
 						<Text style={[styles.headerCell, styles.roleCell]}>Role</Text>
+						<Text numberOfLines={1} style={[styles.headerCell, styles.assignCell]}>Bilik / Room</Text>
 						<Text style={[styles.headerCell, styles.createdCell]}>Joined</Text>
 						<Text numberOfLines={1} style={[styles.headerCell, styles.actionCell]}>Actions</Text>
 					</View>
@@ -510,13 +809,28 @@ const styles = StyleSheet.create({
 	nameCell: { flex: 2.2 },
 	roleCell: { flex: 0.9, textAlign: 'center' },
 	createdCell: { flex: 1, textAlign: 'center' },
-	actionCell: { flex: 0.7, textAlign: 'center' },
+	assignCell: { flex: 1.3 },
+	actionCell: { flex: 0.9, textAlign: 'center' },
 	row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', backgroundColor: '#fff' },
 	rowEven: { backgroundColor: '#fafbfc' },
 	colLarge: { flex: 2.2 },
 	colSmall: { flex: 0.9, alignItems: 'center' },
 	colMedium: { flex: 1, alignItems: 'center' },
-	colAction: { flex: 0.7, alignItems: 'center' },
+	colAssign: { flex: 1.3, paddingRight: 6 },
+	colAction: { flex: 0.9, alignItems: 'center' },
+	assignBilikText: { fontSize: 13, fontWeight: '600', color: '#111827' },
+	assignRoomText: { fontSize: 12, color: '#6b7280', marginTop: 1 },
+	unassignedText: { fontSize: 12, color: '#9ca3af' },
+	rowUnassigned: { backgroundColor: '#fffbeb' },
+	noRoomBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20, backgroundColor: '#fef3c7' },
+	noRoomText: { fontSize: 12, fontWeight: '600', color: '#b45309' },
+	assignBtnUrgent: { backgroundColor: '#fef3c7' },
+	statCardWarn: { backgroundColor: 'rgba(251,191,36,0.35)', borderColor: 'rgba(254,243,199,0.6)' },
+	warnBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fffbeb', borderWidth: 1, borderColor: '#fde68a', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 12 },
+	warnBannerText: { flex: 1, color: '#92400e', fontSize: 13, fontWeight: '500' },
+	warnBannerBtn: { backgroundColor: '#f59e0b', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+	warnBannerBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+	assignBtn: { padding: 7, backgroundColor: '#e0f2fe', borderRadius: 8 },
 	userInfo: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 	avatar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
 	avatarText: { color: '#fff', fontSize: 13, fontWeight: '700' },
@@ -542,6 +856,16 @@ const styles = StyleSheet.create({
 	modalCardWeb: { maxWidth: 440 },
 	modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
 	modalTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
+	modalTitleWrap: { flex: 1, marginRight: 12 },
+	modalSubtitle: { fontSize: 13, color: '#6b7280', marginTop: 2 },
+	selectBox: { minHeight: 44, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#f9fafb' },
+	selectBoxDisabled: { opacity: 0.6 },
+	selectText: { flex: 1, color: '#111827', fontSize: 14 },
+	selectPlaceholder: { color: '#9ca3af' },
+	selectOptions: { maxHeight: 180, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, marginTop: 6, overflow: 'hidden' },
+	selectOption: { paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+	selectOptionText: { color: '#374151', fontSize: 14 },
+	selectOptionActive: { color: '#e53935', fontWeight: '600' },
 	fieldLabel: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6, marginTop: 14 },
 	fieldInput: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, color: '#111827', backgroundColor: '#f9fafb' },
 	roleRow: { flexDirection: 'row', gap: 10 },

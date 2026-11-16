@@ -3,7 +3,7 @@ const supabase = require("../config/supabase");
 exports.getAllUsers = async () => {
   const { data, error } = await supabase
     .from("users")
-    .select("user_id, full_name, email, role, created_at")
+    .select("user_id, full_name, email, role, created_at, bilik_id, room_id")
     .order("full_name", { ascending: true });
 
   if (error) {
@@ -21,6 +21,21 @@ exports.deleteUser = async (userId) => {
   }
 
   return true;
+};
+
+exports.assignUser = async (userId, bilikId, roomId) => {
+  const { data, error } = await supabase
+    .from("users")
+    .update({ bilik_id: bilikId, room_id: roomId })
+    .eq("user_id", userId)
+    .select("user_id, bilik_id, room_id")
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
 };
 
 exports.addUserByAdmin = async (fullName, email, role, bilikId) => {
