@@ -5,5 +5,6 @@ const authMiddleware = require('../middleware/auth');
 
 authRouter.post('/signup', authController.signup);
 authRouter.post('/login', authController.login);
+authRouter.put('/credentials', authMiddleware, authController.updateCredentials);
 
 module.exports = authRouter;
