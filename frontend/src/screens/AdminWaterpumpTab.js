@@ -15,21 +15,22 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
+import { useI18n } from '../i18n';
 import { API_BASE_URL } from '../../constants/api';
 
-// Re-check every minute so pumps switched on or off by residents show up
-// without the admin having to refresh.
-const REFRESH_INTERVAL_MS = 60 * 1000;
+// Background re-check interval comes from Profile > Settings (default 1 min).
 
-function formatDateTime(dateStr) {
+function formatDateTime(dateStr, locale) {
 	if (!dateStr) return '';
-	return new Date(dateStr).toLocaleString(undefined, {
+	return new Date(dateStr).toLocaleString(locale, {
 		day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
 	});
 }
 
 export default function AdminWaterpumpTab() {
-	const { user } = useApp();
+	const { user, settings } = useApp();
+	const { t, locale } = useI18n();
+	const refreshIntervalMs = (settings?.refreshIntervalSec ?? 60) * 1000;
 	const { width } = useWindowDimensions();
 	const isWide = Platform.OS === 'web' && width >= 768;
 
@@ -47,7 +48,7 @@ export default function AdminWaterpumpTab() {
 		try {
 			const res = await fetch(`${API_BASE_URL}/api/actuators`, { headers: authHeader });
 			const data = await res.json();
-			if (!res.ok) throw new Error(data.error || 'Failed to fetch actuators');
+			if (!res.ok) throw new Error(t(data.error || 'Failed to fetch actuators'));
 			const mapped = data.actuators.map((a) => ({
 				roomId: a.room_id,
 				roomName: a.room_name,
@@ -58,15 +59,16 @@ export default function AdminWaterpumpTab() {
 			setActuators(mapped);
 		} catch (err) {
 			// A failed background refresh keeps the last good data on screen.
-			if (!silent) Alert.alert('Error', err.message);
+			if (!silent) Alert.alert(t('Error'), err.message);
 		}
-	}, [user?.token]);
+	}, [user?.token, t]);
 
 	useEffect(() => {
 		fetchActuators().finally(() => setLoading(false));
-		const timer = setInterval(() => fetchActuators({ silent: true }), REFRESH_INTERVAL_MS);
+		if (!refreshIntervalMs) return undefined;
+		const timer = setInterval(() => fetchActuators({ silent: true }), refreshIntervalMs);
 		return () => clearInterval(timer);
-	}, [fetchActuators]);
+	}, [fetchActuators, refreshIntervalMs]);
 
 	const onRefresh = useCallback(async () => {
 		setRefreshing(true);
@@ -93,7 +95,7 @@ export default function AdminWaterpumpTab() {
 		});
 	}, [actuators, search, sortBy, activeOnly]);
 
-	const SORT_OPTIONS = [['room', 'Sort by Room'], ['status', 'On First'], ['changed', 'Recently Changed']];
+	const SORT_OPTIONS = [['room', t('Sort by Room')], ['status', t('On First')], ['changed', t('Recently Changed')]];
 	const sortLabel = SORT_OPTIONS.find(([val]) => val === sortBy)[1];
 
 	const renderItem = ({ item, index }) => {
@@ -103,7 +105,7 @@ export default function AdminWaterpumpTab() {
 				<View style={styles.colRoom}>
 					<Text style={styles.roomName} numberOfLines={1}>{item.roomName}</Text>
 					<Text style={styles.roomSub} numberOfLines={1}>
-						{item.bilikNumber ? `${item.bilikNumber} · Room #${item.roomId}` : `Room #${item.roomId}`}
+						{item.bilikNumber ? `${item.bilikNumber} · ${t('Room #{id}', { id: item.roomId })}` : t('Room #{id}', { id: item.roomId })}
 					</Text>
 				</View>
 
@@ -115,14 +117,14 @@ export default function AdminWaterpumpTab() {
 							color={item.isOn ? '#0369a1' : '#9ca3af'}
 						/>
 						<Text style={[styles.badgeText, item.isOn ? styles.badgeTextOn : styles.badgeTextOff]}>
-							{item.isOn ? 'On' : 'Off'}
+							{item.isOn ? t('On') : t('Off')}
 						</Text>
 					</View>
 				</View>
 
 				<View style={styles.colDate}>
 					<Text style={styles.dateText}>
-						{item.lastUpdated ? formatDateTime(item.lastUpdated) : 'Never used'}
+						{item.lastUpdated ? formatDateTime(item.lastUpdated, locale) : t('Never used')}
 					</Text>
 				</View>
 			</View>
@@ -134,29 +136,29 @@ export default function AdminWaterpumpTab() {
 			<StatusBar barStyle="light-content" />
 
 			<View style={[styles.headerTop, isWide && styles.headerTopWeb]}>
-				<Text style={styles.headerTitle}>Waterpump Management</Text>
-				<Text style={styles.headerSubtitle}>Monitor the water pump in every room</Text>
+				<Text style={styles.headerTitle}>{t('Waterpump Management')}</Text>
+				<Text style={styles.headerSubtitle}>{t('Monitor the water pump in every room')}</Text>
 				<View style={styles.statsRow}>
 					<View style={styles.statCard}>
 						<View style={styles.statIconWrap}>
 							<Ionicons name="water-outline" size={20} color="rgba(255,255,255,0.9)" />
 						</View>
 						<Text style={styles.statNumber}>{total}</Text>
-						<Text style={styles.statLabel}>Total</Text>
+						<Text style={styles.statLabel}>{t('Total')}</Text>
 					</View>
 					<View style={styles.statCard}>
 						<View style={styles.statIconWrap}>
 							<Ionicons name="water" size={20} color="rgba(255,255,255,0.9)" />
 						</View>
 						<Text style={styles.statNumber}>{onCount}</Text>
-						<Text style={styles.statLabel}>On</Text>
+						<Text style={styles.statLabel}>{t('On')}</Text>
 					</View>
 					<View style={styles.statCard}>
 						<View style={styles.statIconWrap}>
 							<Ionicons name="power-outline" size={20} color="rgba(255,255,255,0.9)" />
 						</View>
 						<Text style={styles.statNumber}>{offCount}</Text>
-						<Text style={styles.statLabel}>Off</Text>
+						<Text style={styles.statLabel}>{t('Off')}</Text>
 					</View>
 				</View>
 			</View>
@@ -166,7 +168,7 @@ export default function AdminWaterpumpTab() {
 					<View style={styles.searchBox}>
 						<Ionicons name="search" size={16} color="#9ca3af" />
 						<TextInput
-							placeholder="Search by room or bilik..."
+							placeholder={t('Search by room or bilik...')}
 							placeholderTextColor="#9ca3af"
 							value={search}
 							onChangeText={setSearch}
@@ -191,7 +193,7 @@ export default function AdminWaterpumpTab() {
 								style={[styles.filterBtn, activeOnly && styles.filterBtnActive]}
 								onPress={() => setActiveOnly((v) => !v)}
 							>
-								<Text style={[styles.filterText, activeOnly && styles.filterTextActive]}>On Only</Text>
+								<Text style={[styles.filterText, activeOnly && styles.filterTextActive]}>{t('On Only')}</Text>
 							</TouchableOpacity>
 
 							{showSortMenu && (
@@ -214,9 +216,9 @@ export default function AdminWaterpumpTab() {
 
 				<View style={styles.tableCard}>
 					<View style={styles.tableHeader}>
-						<Text style={[styles.headerCell, styles.hRoom]}>Room</Text>
-						<Text numberOfLines={1} style={[styles.headerCell, styles.hStatus]}>Pump Status</Text>
-						<Text numberOfLines={1} style={[styles.headerCell, styles.hDate]}>Last Changed</Text>
+						<Text style={[styles.headerCell, styles.hRoom]}>{t('Room')}</Text>
+						<Text numberOfLines={1} style={[styles.headerCell, styles.hStatus]}>{t('Pump Status')}</Text>
+						<Text numberOfLines={1} style={[styles.headerCell, styles.hDate]}>{t('Last Changed')}</Text>
 					</View>
 
 					{loading ? (
@@ -232,7 +234,7 @@ export default function AdminWaterpumpTab() {
 							ListEmptyComponent={
 								<View style={styles.emptyWrap}>
 									<Ionicons name="water-outline" size={40} color="#d1d5db" />
-									<Text style={styles.empty}>No water pumps found.</Text>
+									<Text style={styles.empty}>{t('No water pumps found.')}</Text>
 								</View>
 							}
 						/>

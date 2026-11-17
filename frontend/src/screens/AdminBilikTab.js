@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useApp } from "../context/AppContext";
+import { useI18n } from "../i18n";
 import { API_BASE_URL } from "../../constants/api";
 
 const EMPTY_FORM = { bilikNumber: "", householdName: "" };
@@ -29,6 +30,7 @@ function formatDate(dateStr) {
 
 export default function AdminBilikTab() {
   const { user } = useApp();
+  const { t } = useI18n();
   const { width } = useWindowDimensions();
   const isWide = Platform.OS === "web" && width >= 768;
   const [bilik, setBilik] = useState([]);
@@ -49,12 +51,12 @@ export default function AdminBilikTab() {
         headers: authHeader,
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to fetch bilik");
+      if (!res.ok) throw new Error(t(data.error || "Failed to fetch bilik"));
       setBilik(data.bilik);
     } catch (err) {
-      Alert.alert("Error", err.message);
+      Alert.alert(t("Error"), err.message);
     }
-  }, [user?.token]);
+  }, [user?.token, t]);
 
   useEffect(() => {
     fetchBilik().finally(() => setLoading(false));
@@ -95,7 +97,7 @@ export default function AdminBilikTab() {
   const handleSave = async () => {
     setFormError("");
     if (!form.bilikNumber.trim()) {
-      setFormError("Bilik number is required.");
+      setFormError(t("Bilik number is required."));
       return;
     }
     if (
@@ -103,7 +105,9 @@ export default function AdminBilikTab() {
       form.householdName.trim().length > 100
     ) {
       setFormError(
-        "Bilik number must be 50 characters or less and household name 100 or less.",
+        t(
+          "Bilik number must be 50 characters or less and household name 100 or less.",
+        ),
       );
       return;
     }
@@ -124,13 +128,13 @@ export default function AdminBilikTab() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setFormError(data.error || "Failed to save bilik");
+        setFormError(t(data.error || "Failed to save bilik"));
         return;
       }
       setModalVisible(false);
       await fetchBilik();
     } catch {
-      setFormError("Unable to connect to server.");
+      setFormError(t("Unable to connect to server."));
     } finally {
       setSubmitting(false);
     }
@@ -139,12 +143,15 @@ export default function AdminBilikTab() {
   const handleDelete = useCallback(
     (item) => {
       Alert.alert(
-        "Delete Bilik",
-        `Delete ${item.bilik_number}? Linked rooms, sensor readings, actuator data, and user profile rows will also be deleted. This cannot be undone.`,
+        t("Delete Bilik"),
+        t(
+          "Delete {name}? Linked rooms, sensor readings, actuator data, and user profile rows will also be deleted. This cannot be undone.",
+          { name: item.bilik_number },
+        ),
         [
-          { text: "Cancel", style: "cancel" },
+          { text: t("Cancel"), style: "cancel" },
           {
-            text: "Delete",
+            text: t("Delete"),
             style: "destructive",
             onPress: async () => {
               try {
@@ -157,21 +164,21 @@ export default function AdminBilikTab() {
                 );
                 const data = await res.json();
                 if (!res.ok) {
-                  Alert.alert("Error", data.error || "Failed to delete bilik");
+                  Alert.alert(t("Error"), t(data.error || "Failed to delete bilik"));
                   return;
                 }
                 setBilik((current) =>
                   current.filter((entry) => entry.bilik_id !== item.bilik_id),
                 );
               } catch {
-                Alert.alert("Error", "Unable to connect to server.");
+                Alert.alert(t("Error"), t("Unable to connect to server."));
               }
             },
           },
         ],
       );
     },
-    [user?.token],
+    [user?.token, t],
   );
 
   const renderItem = ({ item, index }) => (
@@ -199,14 +206,14 @@ export default function AdminBilikTab() {
           <TouchableOpacity
             style={styles.editBtn}
             onPress={() => openEditModal(item)}
-            accessibilityLabel={`Edit ${item.bilik_number}`}
+            accessibilityLabel={t("Edit {name}", { name: item.bilik_number })}
           >
             <Ionicons name="create-outline" size={16} color="#0369a1" />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.deleteBtn}
             onPress={() => handleDelete(item)}
-            accessibilityLabel={`Delete ${item.bilik_number}`}
+            accessibilityLabel={t("Delete {name}", { name: item.bilik_number })}
           >
             <Ionicons name="trash-outline" size={16} color="#e53935" />
           </TouchableOpacity>
@@ -228,20 +235,20 @@ export default function AdminBilikTab() {
           <View style={[styles.modalCard, isWide && styles.modalCardWeb]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                {editingId !== null ? "Edit Bilik" : "Add New Bilik"}
+                {editingId !== null ? t("Edit Bilik") : t("Add New Bilik")}
               </Text>
               <TouchableOpacity
                 onPress={() => setModalVisible(false)}
-                accessibilityLabel="Close form"
+                accessibilityLabel={t("Close form")}
               >
                 <Ionicons name="close" size={22} color="#374151" />
               </TouchableOpacity>
             </View>
             <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={styles.fieldLabel}>Bilik Number</Text>
+              <Text style={styles.fieldLabel}>{t("Bilik Number")}</Text>
               <TextInput
                 style={styles.fieldInput}
-                placeholder="Enter bilik number (e.g. BILIK-01)"
+                placeholder={t("Enter bilik number (e.g. BILIK-01)")}
                 placeholderTextColor="#9ca3af"
                 maxLength={50}
                 value={form.bilikNumber}
@@ -249,10 +256,10 @@ export default function AdminBilikTab() {
                   setForm((current) => ({ ...current, bilikNumber: value }))
                 }
               />
-              <Text style={styles.fieldLabel}>Household Name</Text>
+              <Text style={styles.fieldLabel}>{t("Household Name")}</Text>
               <TextInput
                 style={styles.fieldInput}
-                placeholder="Enter household name (e.g. Household Doe)"
+                placeholder={t("Enter household name (e.g. Household Doe)")}
                 placeholderTextColor="#9ca3af"
                 maxLength={100}
                 value={form.householdName}
@@ -282,7 +289,7 @@ export default function AdminBilikTab() {
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
                   <Text style={styles.submitBtnText}>
-                    {editingId !== null ? "Save Changes" : "Create Bilik"}
+                    {editingId !== null ? t("Save Changes") : t("Create Bilik")}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -292,9 +299,9 @@ export default function AdminBilikTab() {
       </Modal>
 
       <View style={[styles.headerTop, isWide && styles.headerTopWeb]}>
-        <Text style={styles.headerTitle}>Manage Biliks</Text>
+        <Text style={styles.headerTitle}>{t("Manage Biliks")}</Text>
         <Text style={styles.headerSubtitle}>
-          Manage bilik numbers and households
+          {t("Manage bilik numbers and households")}
         </Text>
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
@@ -304,7 +311,7 @@ export default function AdminBilikTab() {
               color="rgba(255,255,255,0.9)"
             />
             <Text style={styles.statNumber}>{bilik.length}</Text>
-            <Text style={styles.statLabel}>Total Bilik</Text>
+            <Text style={styles.statLabel}>{t("Total Bilik")}</Text>
           </View>
           <View style={styles.statCard}>
             <Ionicons
@@ -315,7 +322,7 @@ export default function AdminBilikTab() {
             <Text style={styles.statNumber}>
               {bilik.filter((item) => item.household_name).length}
             </Text>
-            <Text style={styles.statLabel}> Households</Text>
+            <Text style={styles.statLabel}>{t("Households")}</Text>
           </View>
         </View>
       </View>
@@ -325,7 +332,7 @@ export default function AdminBilikTab() {
           <View style={styles.searchBox}>
             <Ionicons name="search" size={16} color="#9ca3af" />
             <TextInput
-              placeholder="Search bilik or household..."
+              placeholder={t("Search bilik or household...")}
               placeholderTextColor="#9ca3af"
               value={search}
               onChangeText={setSearch}
@@ -334,7 +341,7 @@ export default function AdminBilikTab() {
             {search.length > 0 ? (
               <TouchableOpacity
                 onPress={() => setSearch("")}
-                accessibilityLabel="Clear search"
+                accessibilityLabel={t("Clear search")}
               >
                 <Ionicons name="close-circle" size={16} color="#9ca3af" />
               </TouchableOpacity>
@@ -342,21 +349,21 @@ export default function AdminBilikTab() {
           </View>
           <TouchableOpacity style={styles.addBtn} onPress={openAddModal}>
             <Ionicons name="add-circle-outline" size={16} color="#fff" />
-            <Text style={styles.addText}>Add Bilik</Text>
+            <Text style={styles.addText}>{t("Add Bilik")}</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.tableCard}>
           <View style={styles.tableHeader}>
             <Text style={[styles.headerCell, styles.numberHeader]}>
-              Bilik Number
+              {t("Bilik Number")}
             </Text>
             <Text style={[styles.headerCell, styles.householdHeader]}>
-              Household
+              {t("Household")}
             </Text>
-            <Text style={[styles.headerCell, styles.dateHeader]}>Created</Text>
+            <Text style={[styles.headerCell, styles.dateHeader]}>{t("Created")}</Text>
             <Text style={[styles.headerCell, styles.actionHeader]}>
-              Actions
+              {t("Actions")}
             </Text>
           </View>
           {loading ? (
@@ -376,7 +383,7 @@ export default function AdminBilikTab() {
               ListEmptyComponent={
                 <View style={styles.emptyWrap}>
                   <Ionicons name="business-outline" size={40} color="#d1d5db" />
-                  <Text style={styles.empty}>No bilik found.</Text>
+                  <Text style={styles.empty}>{t("No bilik found.")}</Text>
                 </View>
               }
             />

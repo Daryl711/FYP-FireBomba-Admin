@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
+import { useI18n } from '../i18n';
 import { API_BASE_URL } from '../../constants/api';
 
 const AVATAR_COLORS = ['#7c3aed', '#0369a1', '#047857', '#b45309', '#be185d', '#0f766e'];
@@ -53,6 +54,7 @@ function needsRoom(u) {
 // Bilik dropdown followed by a Room dropdown limited to rooms in that bilik.
 // Both are required. Changing the bilik clears the room so the pair stays consistent.
 function AssignmentPicker({ bilikOptions, roomOptions, bilikId, roomId, onChange }) {
+	const { t } = useI18n();
 	const [openMenu, setOpenMenu] = useState(null);
 	const selectedBilik = bilikOptions.find((b) => b.id === bilikId);
 	const roomsInBilik = roomOptions.filter((r) => r.bilikId === bilikId);
@@ -63,15 +65,15 @@ function AssignmentPicker({ bilikOptions, roomOptions, bilikId, roomId, onChange
 
 	return (
 		<View>
-			<Text style={styles.fieldLabel}>Bilik</Text>
+			<Text style={styles.fieldLabel}>{t('Bilik')}</Text>
 			<TouchableOpacity
 				style={styles.selectBox}
 				onPress={() => toggle('bilik')}
 				accessibilityRole="button"
-				accessibilityLabel="Select bilik"
+				accessibilityLabel={t('Select bilik')}
 			>
 				<Text style={[styles.selectText, !selectedBilik && styles.selectPlaceholder]} numberOfLines={1}>
-					{selectedBilik ? formatBilik(selectedBilik) : 'Select a bilik'}
+					{selectedBilik ? formatBilik(selectedBilik) : t('Select a bilik')}
 				</Text>
 				<Ionicons name={openMenu === 'bilik' ? 'chevron-up' : 'chevron-down'} size={16} color="#6b7280" />
 			</TouchableOpacity>
@@ -96,22 +98,22 @@ function AssignmentPicker({ bilikOptions, roomOptions, bilikId, roomId, onChange
 				</View>
 			) : null}
 
-			<Text style={styles.fieldLabel}>Room</Text>
+			<Text style={styles.fieldLabel}>{t('Room')}</Text>
 			<TouchableOpacity
 				style={[styles.selectBox, roomDisabled && styles.selectBoxDisabled]}
 				onPress={() => toggle('room')}
 				disabled={roomDisabled}
 				accessibilityRole="button"
-				accessibilityLabel="Select room"
+				accessibilityLabel={t('Select room')}
 			>
 				<Text style={[styles.selectText, !selectedRoom && styles.selectPlaceholder]} numberOfLines={1}>
 					{roomDisabled
-						? 'Select a bilik first'
+						? t('Select a bilik first')
 						: selectedRoom
 							? selectedRoom.name
 							: roomsInBilik.length
-								? 'Select a room'
-								: 'No rooms in this bilik — add one in the Rooms tab'}
+								? t('Select a room')
+								: t('No rooms in this bilik — add one in the Rooms tab')}
 				</Text>
 				<Ionicons name={openMenu === 'room' ? 'chevron-up' : 'chevron-down'} size={16} color="#6b7280" />
 			</TouchableOpacity>
@@ -138,6 +140,7 @@ function AssignmentPicker({ bilikOptions, roomOptions, bilikId, roomId, onChange
 
 export default function AdminUserScreen() {
 	const { user } = useApp();
+	const { t } = useI18n();
 	const { width } = useWindowDimensions();
 	const isWide = Platform.OS === 'web' && width >= 768;
 
@@ -176,9 +179,9 @@ export default function AdminUserScreen() {
 				bilikRes.json(),
 				roomsRes.json(),
 			]);
-			if (!usersRes.ok) throw new Error(data.error || 'Failed to fetch users');
-			if (!bilikRes.ok) throw new Error(bilikData.error || 'Failed to fetch bilik');
-			if (!roomsRes.ok) throw new Error(roomsData.error || 'Failed to fetch rooms');
+			if (!usersRes.ok) throw new Error(t(data.error || 'Failed to fetch users'));
+			if (!bilikRes.ok) throw new Error(t(bilikData.error || 'Failed to fetch bilik'));
+			if (!roomsRes.ok) throw new Error(t(roomsData.error || 'Failed to fetch rooms'));
 
 			setBilikOptions(
 				bilikData.bilik.map((b) => ({
@@ -205,9 +208,9 @@ export default function AdminUserScreen() {
 			}));
 			setUsers(mapped);
 		} catch (err) {
-			Alert.alert('Error', err.message);
+			Alert.alert(t('Error'), err.message);
 		}
-	}, [user?.token]);
+	}, [user?.token, t]);
 
 	useEffect(() => {
 		fetchUsers().finally(() => setLoading(false));
@@ -243,16 +246,16 @@ export default function AdminUserScreen() {
 		});
 	}, [users, bilikOptions, roomOptions, search, sortBy, unassignedOnly]);
 
-	const sortLabel = useMemo(() => (sortBy === 'created' ? 'Sort by Date' : 'Sort by Name'), [sortBy]);
+	const sortLabel = useMemo(() => (sortBy === 'created' ? t('Sort by Date') : t('Sort by Name')), [sortBy, t]);
 
 	const handleDeleteUser = useCallback((userId, userName) => {
 		Alert.alert(
-			'Delete User',
-			`Delete ${userName}? This action cannot be undone.`,
+			t('Delete User'),
+			t('Delete {name}? This action cannot be undone.', { name: userName }),
 			[
-				{ text: 'Cancel', style: 'cancel' },
+				{ text: t('Cancel'), style: 'cancel' },
 				{
-					text: 'Delete',
+					text: t('Delete'),
 					style: 'destructive',
 					onPress: async () => {
 						try {
@@ -262,18 +265,18 @@ export default function AdminUserScreen() {
 							});
 							if (!res.ok) {
 								const data = await res.json();
-								Alert.alert('Error', data.error || 'Failed to delete user');
+								Alert.alert(t('Error'), t(data.error || 'Failed to delete user'));
 								return;
 							}
 							setUsers((cur) => cur.filter((e) => e.id !== userId));
 						} catch {
-							Alert.alert('Error', 'Unable to connect to server.');
+							Alert.alert(t('Error'), t('Unable to connect to server.'));
 						}
 					},
 				},
 			],
 		);
-	}, [user?.token]);
+	}, [user?.token, t]);
 
 	const openAddModal = () => {
 		setForm(EMPTY_FORM);
@@ -291,7 +294,7 @@ export default function AdminUserScreen() {
 		if (!assignTarget) return;
 		setAssignError('');
 		if (assignForm.bilikId == null || assignForm.roomId == null) {
-			setAssignError('Select both a bilik and the room this user lives in.');
+			setAssignError(t('Select both a bilik and the room this user lives in.'));
 			return;
 		}
 		setAssigning(true);
@@ -303,7 +306,7 @@ export default function AdminUserScreen() {
 			});
 			const data = await res.json();
 			if (!res.ok) {
-				setAssignError(data.error || 'Failed to update assignment');
+				setAssignError(t(data.error || 'Failed to update assignment'));
 				return;
 			}
 			setUsers((cur) =>
@@ -315,7 +318,7 @@ export default function AdminUserScreen() {
 			);
 			setAssignTarget(null);
 		} catch {
-			setAssignError('Unable to connect to server.');
+			setAssignError(t('Unable to connect to server.'));
 		} finally {
 			setAssigning(false);
 		}
@@ -324,11 +327,11 @@ export default function AdminUserScreen() {
 	const handleAddUser = async () => {
 		setFormError('');
 		if (!form.fullName.trim() || !form.email.trim() || !form.password) {
-			setFormError('Full name, email, and password are required.');
+			setFormError(t('Full name, email, and password are required.'));
 			return;
 		}
 		if (form.bilikId == null || form.roomId == null) {
-			setFormError('Assign the user to a bilik and room.');
+			setFormError(t('Assign the user to a bilik and room.'));
 			return;
 		}
 		setSubmitting(true);
@@ -347,13 +350,13 @@ export default function AdminUserScreen() {
 			});
 			const data = await res.json();
 			if (!res.ok) {
-				setFormError(data.error || 'Failed to create user');
+				setFormError(t(data.error || 'Failed to create user'));
 				return;
 			}
 			setModalVisible(false);
 			await fetchUsers();
 		} catch {
-			setFormError('Unable to connect to server.');
+			setFormError(t('Unable to connect to server.'));
 		} finally {
 			setSubmitting(false);
 		}
@@ -384,7 +387,7 @@ export default function AdminUserScreen() {
 				<View style={styles.colSmall}>
 					<View style={[styles.badge, item.role === 'admin' ? styles.roleBadgeAdmin : styles.roleBadgeUser]}>
 						<Text style={[styles.badgeText, item.role === 'admin' ? styles.badgeTextAdmin : styles.badgeTextUser]}>
-							{item.role}
+							{t(item.role)}
 						</Text>
 					</View>
 				</View>
@@ -394,10 +397,10 @@ export default function AdminUserScreen() {
 						<TouchableOpacity
 							style={styles.noRoomBadge}
 							onPress={() => openAssignModal(item)}
-							accessibilityLabel={`${item.name} has no room. Assign one`}
+							accessibilityLabel={t('{name} has no room. Assign one', { name: item.name })}
 						>
 							<Ionicons name="alert-circle" size={13} color="#b45309" />
-							<Text style={styles.noRoomText} numberOfLines={1}>No room</Text>
+							<Text style={styles.noRoomText} numberOfLines={1}>{t('No room')}</Text>
 						</TouchableOpacity>
 					) : room ? (
 						<>
@@ -418,7 +421,7 @@ export default function AdminUserScreen() {
 						<TouchableOpacity
 							style={[styles.assignBtn, missingRoom && styles.assignBtnUrgent]}
 							onPress={() => openAssignModal(item)}
-							accessibilityLabel={`Assign ${item.name} to bilik and room`}
+							accessibilityLabel={t('Assign {name} to bilik and room', { name: item.name })}
 						>
 							<Ionicons name="home-outline" size={16} color={missingRoom ? '#b45309' : '#0369a1'} />
 						</TouchableOpacity>
@@ -442,14 +445,14 @@ export default function AdminUserScreen() {
 				<View style={styles.modalOverlay}>
 					<View style={[styles.modalCard, isWide && styles.modalCardWeb]}>
 						<View style={styles.modalHeader}>
-							<Text style={styles.modalTitle}>Add New User</Text>
+							<Text style={styles.modalTitle}>{t('Add New User')}</Text>
 							<TouchableOpacity onPress={() => setModalVisible(false)}>
 								<Ionicons name="close" size={22} color="#374151" />
 							</TouchableOpacity>
 						</View>
 
 						<ScrollView keyboardShouldPersistTaps="handled">
-							<Text style={styles.fieldLabel}>Full Name</Text>
+							<Text style={styles.fieldLabel}>{t('Full Name')}</Text>
 							<TextInput
 								style={styles.fieldInput}
 								placeholder="John Doe"
@@ -458,7 +461,7 @@ export default function AdminUserScreen() {
 								onChangeText={(v) => setForm((f) => ({ ...f, fullName: v }))}
 							/>
 
-							<Text style={styles.fieldLabel}>Email</Text>
+							<Text style={styles.fieldLabel}>{t('Email')}</Text>
 							<TextInput
 								style={styles.fieldInput}
 								placeholder="user@example.com"
@@ -469,17 +472,17 @@ export default function AdminUserScreen() {
 								onChangeText={(v) => setForm((f) => ({ ...f, email: v }))}
 							/>
 
-							<Text style={styles.fieldLabel}>Password</Text>
+							<Text style={styles.fieldLabel}>{t('Password')}</Text>
 							<TextInput
 								style={styles.fieldInput}
-								placeholder="Password"
+								placeholder={t('Password')}
 								placeholderTextColor="#9ca3af"
 								secureTextEntry
 								value={form.password}
 								onChangeText={(v) => setForm((f) => ({ ...f, password: v }))}
 							/>
 
-							<Text style={styles.fieldLabel}>Role</Text>
+							<Text style={styles.fieldLabel}>{t('Role')}</Text>
 							<View style={styles.roleRow}>
 								{['User', 'Admin'].map((r) => (
 									<TouchableOpacity
@@ -487,7 +490,7 @@ export default function AdminUserScreen() {
 										style={[styles.roleOption, form.role === r && styles.roleOptionActive]}
 										onPress={() => setForm((f) => ({ ...f, role: r }))}
 									>
-										<Text style={[styles.roleOptionText, form.role === r && styles.roleOptionTextActive]}>{r}</Text>
+										<Text style={[styles.roleOptionText, form.role === r && styles.roleOptionTextActive]}>{t(r)}</Text>
 									</TouchableOpacity>
 								))}
 							</View>
@@ -515,7 +518,7 @@ export default function AdminUserScreen() {
 								{submitting ? (
 									<ActivityIndicator color="#fff" size="small" />
 								) : (
-									<Text style={styles.submitBtnText}>Create User</Text>
+									<Text style={styles.submitBtnText}>{t('Create User')}</Text>
 								)}
 							</TouchableOpacity>
 						</ScrollView>
@@ -528,7 +531,7 @@ export default function AdminUserScreen() {
 					<View style={[styles.modalCard, isWide && styles.modalCardWeb]}>
 						<View style={styles.modalHeader}>
 							<View style={styles.modalTitleWrap}>
-								<Text style={styles.modalTitle}>Assign Bilik & Room</Text>
+								<Text style={styles.modalTitle}>{t('Assign Bilik & Room')}</Text>
 								<Text style={styles.modalSubtitle} numberOfLines={1}>{assignTarget?.name}</Text>
 							</View>
 							<TouchableOpacity onPress={() => setAssignTarget(null)}>
@@ -561,7 +564,7 @@ export default function AdminUserScreen() {
 								{assigning ? (
 									<ActivityIndicator color="#fff" size="small" />
 								) : (
-									<Text style={styles.submitBtnText}>Save Assignment</Text>
+									<Text style={styles.submitBtnText}>{t('Save Assignment')}</Text>
 								)}
 							</TouchableOpacity>
 						</ScrollView>
@@ -570,41 +573,41 @@ export default function AdminUserScreen() {
 			</Modal>
 
 			<View style={[styles.headerTop, isWide && styles.headerTopWeb]}>
-				<Text style={styles.headerTitle}>User Management</Text>
-				<Text style={styles.headerSubtitle}>Manage users and permissions</Text>
+				<Text style={styles.headerTitle}>{t('User Management')}</Text>
+				<Text style={styles.headerSubtitle}>{t('Manage users and permissions')}</Text>
 				<View style={styles.statsRow}>
 					<View style={styles.statCard}>
 						<View style={styles.statIconWrap}>
 							<Ionicons name="people-outline" size={20} color="rgba(255,255,255,0.9)" />
 						</View>
 						<Text style={styles.statNumber}>{totalUsers}</Text>
-						<Text style={styles.statLabel}>Total Users</Text>
+						<Text style={styles.statLabel}>{t('Total Users')}</Text>
 					</View>
 					<View style={styles.statCard}>
 						<View style={styles.statIconWrap}>
 							<Ionicons name="shield-checkmark-outline" size={20} color="rgba(255,255,255,0.9)" />
 						</View>
 						<Text style={styles.statNumber}>{adminCount}</Text>
-						<Text style={styles.statLabel}>Admins</Text>
+						<Text style={styles.statLabel}>{t('Admins')}</Text>
 					</View>
 					<View style={styles.statCard}>
 						<View style={styles.statIconWrap}>
 							<Ionicons name="person-outline" size={20} color="rgba(255,255,255,0.9)" />
 						</View>
 						<Text style={styles.statNumber}>{totalUsers - adminCount}</Text>
-						<Text style={styles.statLabel}>Normal Users</Text>
+						<Text style={styles.statLabel}>{t('Normal Users')}</Text>
 					</View>
 					<TouchableOpacity
 						style={[styles.statCard, unassignedCount > 0 && styles.statCardWarn]}
 						onPress={() => unassignedCount > 0 && setUnassignedOnly(true)}
 						disabled={unassignedCount === 0}
-						accessibilityLabel={`${unassignedCount} users without a room`}
+						accessibilityLabel={t('{count} users without a room', { count: unassignedCount })}
 					>
 						<View style={styles.statIconWrap}>
 							<Ionicons name="home-outline" size={20} color="rgba(255,255,255,0.9)" />
 						</View>
 						<Text style={styles.statNumber}>{unassignedCount}</Text>
-						<Text style={styles.statLabel}>No Room</Text>
+						<Text style={styles.statLabel}>{t('No Room')}</Text>
 					</TouchableOpacity>
 				</View>
 			</View>
@@ -614,7 +617,7 @@ export default function AdminUserScreen() {
 					<View style={styles.searchBox}>
 						<Ionicons name="search" size={16} color="#9ca3af" />
 						<TextInput
-							placeholder="Search by name or email..."
+							placeholder={t('Search by name or email...')}
 							placeholderTextColor="#9ca3af"
 							value={search}
 							onChangeText={setSearch}
@@ -643,7 +646,7 @@ export default function AdminUserScreen() {
 									style={styles.sortOption}
 									onPress={() => { setSortBy('name'); setShowSortMenu(false); }}
 								>
-									<Text style={[styles.sortOptionText, sortBy === 'name' && styles.sortOptionActive]}>Sort by Name</Text>
+									<Text style={[styles.sortOptionText, sortBy === 'name' && styles.sortOptionActive]}>{t('Sort by Name')}</Text>
 									{sortBy === 'name' ? <Ionicons name="checkmark" size={16} color="#e53935" /> : null}
 								</TouchableOpacity>
 								<View style={styles.sortDivider} />
@@ -651,7 +654,7 @@ export default function AdminUserScreen() {
 									style={styles.sortOption}
 									onPress={() => { setSortBy('created'); setShowSortMenu(false); }}
 								>
-									<Text style={[styles.sortOptionText, sortBy === 'created' && styles.sortOptionActive]}>Sort by Date</Text>
+									<Text style={[styles.sortOptionText, sortBy === 'created' && styles.sortOptionActive]}>{t('Sort by Date')}</Text>
 									{sortBy === 'created' ? <Ionicons name="checkmark" size={16} color="#e53935" /> : null}
 								</TouchableOpacity>
 							</View>
@@ -659,7 +662,7 @@ export default function AdminUserScreen() {
 
 						<TouchableOpacity style={styles.addBtn} onPress={openAddModal}>
 							<Ionicons name="person-add-outline" size={16} color="#fff" />
-							<Text style={styles.addText}>Add User</Text>
+							<Text style={styles.addText}>{t('Add User')}</Text>
 						</TouchableOpacity>
 					</View>
 				</View>
@@ -669,25 +672,25 @@ export default function AdminUserScreen() {
 						<Ionicons name="warning-outline" size={18} color="#b45309" />
 						<Text style={styles.warnBannerText}>
 							{unassignedCount === 1
-								? '1 user has not been assigned to a room.'
-								: `${unassignedCount} users have not been assigned to a room.`}
+								? t('1 user has not been assigned to a room.')
+								: t('{count} users have not been assigned to a room.', { count: unassignedCount })}
 						</Text>
 						<TouchableOpacity
 							style={styles.warnBannerBtn}
 							onPress={() => setUnassignedOnly((v) => !v)}
 						>
-							<Text style={styles.warnBannerBtnText}>{unassignedOnly ? 'Show all' : 'Review'}</Text>
+							<Text style={styles.warnBannerBtnText}>{unassignedOnly ? t('Show all') : t('Review')}</Text>
 						</TouchableOpacity>
 					</View>
 				) : null}
 
 				<View style={styles.tableCard}>
 					<View style={styles.tableHeader}>
-						<Text style={[styles.headerCell, styles.nameCell]}>User</Text>
-						<Text style={[styles.headerCell, styles.roleCell]}>Role</Text>
-						<Text numberOfLines={1} style={[styles.headerCell, styles.assignCell]}>Bilik / Room</Text>
-						<Text style={[styles.headerCell, styles.createdCell]}>Joined</Text>
-						<Text numberOfLines={1} style={[styles.headerCell, styles.actionCell]}>Actions</Text>
+						<Text style={[styles.headerCell, styles.nameCell]}>{t('User')}</Text>
+						<Text style={[styles.headerCell, styles.roleCell]}>{t('Role')}</Text>
+						<Text numberOfLines={1} style={[styles.headerCell, styles.assignCell]}>{t('Bilik / Room')}</Text>
+						<Text style={[styles.headerCell, styles.createdCell]}>{t('Joined')}</Text>
+						<Text numberOfLines={1} style={[styles.headerCell, styles.actionCell]}>{t('Actions')}</Text>
 					</View>
 
 					{loading ? (
@@ -703,7 +706,7 @@ export default function AdminUserScreen() {
 							ListEmptyComponent={
 								<View style={styles.emptyWrap}>
 									<Ionicons name="people-outline" size={40} color="#d1d5db" />
-									<Text style={styles.empty}>No users found.</Text>
+									<Text style={styles.empty}>{t('No users found.')}</Text>
 								</View>
 							}
 						/>

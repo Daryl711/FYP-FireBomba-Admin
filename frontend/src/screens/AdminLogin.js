@@ -14,10 +14,12 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useApp } from "../context/AppContext";
+import { useI18n } from "../i18n";
 import { API_BASE_URL } from "../../constants/api";
 
 export default function AdminLogin({ navigation }) {
   const { setUser } = useApp();
+  const { t } = useI18n();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -30,7 +32,7 @@ export default function AdminLogin({ navigation }) {
     setError("");
 
     if (!email.trim() || !password) {
-      setError("Email and password are required.");
+      setError(t("Email and password are required."));
       return;
     }
 
@@ -45,15 +47,19 @@ export default function AdminLogin({ navigation }) {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || "Login failed. Please try again.");
+        setError(t(data.error || "Login failed. Please try again."));
         return;
       }
 
-      setUser({ ...data.user, token: data.session.access_token });
+      setUser({
+        ...data.user,
+        fullName: data.profile?.full_name,
+        token: data.session.access_token,
+      });
       navigation.replace("Admin");
     } catch (err) {
       setError(
-        "Unable to connect to the server. Please check your connection.",
+        t("Unable to connect to the server. Please check your connection."),
       );
     } finally {
       setLoading(false);
@@ -79,11 +85,11 @@ export default function AdminLogin({ navigation }) {
                 <Ionicons name="flame" size={32} color="#fff" />
               </View>
               <Text style={styles.brandName}>FireBomba</Text>
-              <Text style={styles.brandSub}>Admin Portal</Text>
+              <Text style={styles.brandSub}>{t("Admin Portal")}</Text>
             </View>
 
             <View>
-              <Text style={styles.label}>Email</Text>
+              <Text style={styles.label}>{t("Email")}</Text>
               <View
                 style={[
                   styles.inputWrap,
@@ -115,7 +121,7 @@ export default function AdminLogin({ navigation }) {
                 />
               </View>
 
-              <Text style={[styles.label, styles.labelSpaced]}>Password</Text>
+              <Text style={[styles.label, styles.labelSpaced]}>{t("Password")}</Text>
               <View
                 style={[
                   styles.inputWrap,
@@ -138,7 +144,7 @@ export default function AdminLogin({ navigation }) {
                   }}
                   onFocus={() => setPasswordFocused(true)}
                   onBlur={() => setPasswordFocused(false)}
-                  placeholder="Enter password"
+                  placeholder={t("Enter password")}
                   placeholderTextColor="#9ca3af"
                   secureTextEntry={!showPassword}
                   editable={!loading}
@@ -175,7 +181,7 @@ export default function AdminLogin({ navigation }) {
                 {loading ? (
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
-                  <Text style={styles.loginText}>Sign In</Text>
+                  <Text style={styles.loginText}>{t("Sign In")}</Text>
                 )}
               </TouchableOpacity>
             </View>

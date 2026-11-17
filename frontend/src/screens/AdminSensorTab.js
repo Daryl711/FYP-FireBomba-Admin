@@ -15,32 +15,31 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
+import { useI18n } from '../i18n';
 import { API_BASE_URL } from '../../constants/api';
 
 // Wording for the two sensor states. Change these to rename them everywhere
 // on this page (e.g. 'Active' / 'Inactive').
 const STATUS_LABELS = { online: 'Online', offline: 'Offline' };
 
-// Re-check every minute so a sensor that stops sending flips to Offline
-// without the admin having to refresh.
-const REFRESH_INTERVAL_MS = 60 * 1000;
+// Background re-check interval comes from Profile > Settings (default 1 min).
 
-function formatDateTime(dateStr) {
+function formatDateTime(dateStr, locale) {
 	if (!dateStr) return '';
-	return new Date(dateStr).toLocaleString(undefined, {
+	return new Date(dateStr).toLocaleString(locale, {
 		day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
 	});
 }
 
-function formatAgo(dateStr, now) {
-	if (!dateStr) return 'No data yet';
+function formatAgo(dateStr, now, t) {
+	if (!dateStr) return t('No data yet');
 	const minutes = Math.floor((now - new Date(dateStr).getTime()) / 60000);
-	if (minutes < 1) return 'Just now';
-	if (minutes < 60) return `${minutes} min ago`;
+	if (minutes < 1) return t('Just now');
+	if (minutes < 60) return t('{n} min ago', { n: minutes });
 	const hours = Math.floor(minutes / 60);
-	if (hours < 24) return `${hours} h ago`;
+	if (hours < 24) return t('{n} h ago', { n: hours });
 	const days = Math.floor(hours / 24);
-	return `${days} day${days === 1 ? '' : 's'} ago`;
+	return days === 1 ? t('1 day ago') : t('{n} days ago', { n: days });
 }
 
 function formatNumber(value, unit = '') {
@@ -49,7 +48,10 @@ function formatNumber(value, unit = '') {
 }
 
 export default function AdminSensorTab() {
-	const { user } = useApp();
+	const { user, settings } = useApp();
+	const { t, locale } = useI18n();
+	const statusLabel = (online) => t(online ? STATUS_LABELS.online : STATUS_LABELS.offline);
+	const refreshIntervalMs = (settings?.refreshIntervalSec ?? 60) * 1000;
 	const { width } = useWindowDimensions();
 	const isWide = Platform.OS === 'web' && width >= 768;
 
@@ -69,7 +71,7 @@ export default function AdminSensorTab() {
 		try {
 			const res = await fetch(`${API_BASE_URL}/api/sensors`, { headers: authHeader });
 			const data = await res.json();
-			if (!res.ok) throw new Error(data.error || 'Failed to fetch sensors');
+			if (!res.ok) throw new Error(t(data.error || 'Failed to fetch sensors'));
 			setSensors(
 				data.sensors.map((s) => ({
 					roomId: s.room_id,
@@ -84,15 +86,16 @@ export default function AdminSensorTab() {
 			setCheckedAt(data.checked_at ? new Date(data.checked_at).getTime() : Date.now());
 		} catch (err) {
 			// A failed background refresh keeps the last good data on screen.
-			if (!silent) Alert.alert('Error', err.message);
+			if (!silent) Alert.alert(t('Error'), err.message);
 		}
-	}, [user?.token]);
+	}, [user?.token, t]);
 
 	useEffect(() => {
 		fetchSensors().finally(() => setLoading(false));
-		const timer = setInterval(() => fetchSensors({ silent: true }), REFRESH_INTERVAL_MS);
+		if (!refreshIntervalMs) return undefined;
+		const timer = setInterval(() => fetchSensors({ silent: true }), refreshIntervalMs);
 		return () => clearInterval(timer);
-	}, [fetchSensors]);
+	}, [fetchSensors, refreshIntervalMs]);
 
 	const onRefresh = useCallback(async () => {
 		setRefreshing(true);
@@ -119,7 +122,7 @@ export default function AdminSensorTab() {
 		});
 	}, [sensors, search, sortBy, offlineOnly]);
 
-	const SORT_OPTIONS = [['room', 'Sort by Room'], ['status', 'Offline First'], ['lastSeen', 'Latest Data First']];
+	const SORT_OPTIONS = [['room', t('Sort by Room')], ['status', t('Offline First')], ['lastSeen', t('Latest Data First')]];
 	const sortLabel = SORT_OPTIONS.find(([val]) => val === sortBy)[1];
 
 	const renderItem = ({ item, index }) => {
@@ -130,7 +133,7 @@ export default function AdminSensorTab() {
 				<View style={styles.colLarge}>
 					<Text style={styles.sensorType} numberOfLines={1}>{item.roomName}</Text>
 					<Text style={styles.sensorRoom} numberOfLines={1}>
-						{item.bilikNumber ? `${item.bilikNumber} · Room #${item.roomId}` : `Room #${item.roomId}`}
+						{item.bilikNumber ? `${item.bilikNumber} · ${t('Room #{id}', { id: item.roomId })}` : t('Room #{id}', { id: item.roomId })}
 					</Text>
 				</View>
 
@@ -138,7 +141,7 @@ export default function AdminSensorTab() {
 					<View style={[styles.statusBadge, item.isOnline ? styles.statusBadgeOnline : styles.statusBadgeOffline]}>
 						<View style={[styles.statusDot, item.isOnline ? styles.statusDotOnline : styles.statusDotOffline]} />
 						<Text style={[styles.statusText, item.isOnline ? styles.statusTextOnline : styles.statusTextOffline]}>
-							{item.isOnline ? STATUS_LABELS.online : STATUS_LABELS.offline}
+							{statusLabel(item.isOnline)}
 						</Text>
 					</View>
 				</View>
@@ -150,8 +153,8 @@ export default function AdminSensorTab() {
 								{formatNumber(latest.temperature, '°C')} · {formatNumber(latest.humidity, '%')}
 							</Text>
 							<Text style={styles.readingSubText} numberOfLines={1}>
-								Smoke {formatNumber(latest.smoke)} · CO {formatNumber(latest.co)}
-								{latest.flame_detected ? ' · 🔥 Flame' : ''}
+								{t('Smoke')} {formatNumber(latest.smoke)} · CO {formatNumber(latest.co)}
+								{latest.flame_detected ? ` · ${t('Flame')}` : ''}
 							</Text>
 						</>
 					) : (
@@ -161,9 +164,9 @@ export default function AdminSensorTab() {
 
 				<View style={styles.colDate}>
 					<Text style={[styles.agoText, !item.isOnline && item.lastReadingAt && styles.agoTextStale]}>
-						{formatAgo(item.lastReadingAt, checkedAt)}
+						{formatAgo(item.lastReadingAt, checkedAt, t)}
 					</Text>
-					{item.lastReadingAt ? <Text style={styles.dateText}>{formatDateTime(item.lastReadingAt)}</Text> : null}
+					{item.lastReadingAt ? <Text style={styles.dateText}>{formatDateTime(item.lastReadingAt, locale)}</Text> : null}
 				</View>
 			</View>
 		);
@@ -174,9 +177,12 @@ export default function AdminSensorTab() {
 			<StatusBar barStyle="light-content" />
 
 			<View style={[styles.headerTop, isWide && styles.headerTopWeb]}>
-				<Text style={styles.headerTitle}>Sensor Management</Text>
+				<Text style={styles.headerTitle}>{t('Sensor Management')}</Text>
 				<Text style={styles.headerSubtitle}>
-					A sensor is {STATUS_LABELS.offline} when no data has been received for {offlineAfter} minutes
+					{t('A sensor is {status} when no data has been received for {minutes} minutes', {
+						status: statusLabel(false),
+						minutes: offlineAfter,
+					})}
 				</Text>
 				<View style={styles.statsRow}>
 					<View style={styles.statCard}>
@@ -184,21 +190,21 @@ export default function AdminSensorTab() {
 							<Ionicons name="hardware-chip-outline" size={20} color="rgba(255,255,255,0.9)" />
 						</View>
 						<Text style={styles.statNumber}>{totalSensors}</Text>
-						<Text style={styles.statLabel}>Total</Text>
+						<Text style={styles.statLabel}>{t('Total')}</Text>
 					</View>
 					<View style={styles.statCard}>
 						<View style={styles.statIconWrap}>
 							<Ionicons name="checkmark-circle-outline" size={20} color="rgba(255,255,255,0.9)" />
 						</View>
 						<Text style={styles.statNumber}>{onlineCount}</Text>
-						<Text style={styles.statLabel}>{STATUS_LABELS.online}</Text>
+						<Text style={styles.statLabel}>{statusLabel(true)}</Text>
 					</View>
 					<View style={styles.statCard}>
 						<View style={styles.statIconWrap}>
 							<Ionicons name="close-circle-outline" size={20} color="rgba(255,255,255,0.9)" />
 						</View>
 						<Text style={styles.statNumber}>{offlineCount}</Text>
-						<Text style={styles.statLabel}>{STATUS_LABELS.offline}</Text>
+						<Text style={styles.statLabel}>{statusLabel(false)}</Text>
 					</View>
 				</View>
 			</View>
@@ -208,7 +214,7 @@ export default function AdminSensorTab() {
 					<View style={styles.searchBox}>
 						<Ionicons name="search" size={16} color="#9ca3af" />
 						<TextInput
-							placeholder="Search by room or bilik..."
+							placeholder={t('Search by room or bilik...')}
 							placeholderTextColor="#9ca3af"
 							value={search}
 							onChangeText={setSearch}
@@ -234,7 +240,7 @@ export default function AdminSensorTab() {
 								onPress={() => setOfflineOnly((v) => !v)}
 							>
 								<Text style={[styles.filterText, offlineOnly && styles.filterTextActive]}>
-									{STATUS_LABELS.offline} Only
+									{t('{status} Only', { status: statusLabel(false) })}
 								</Text>
 							</TouchableOpacity>
 
@@ -255,17 +261,17 @@ export default function AdminSensorTab() {
 						</View>
 
 						<Text style={styles.checkedText} numberOfLines={1}>
-							Checked {new Date(checkedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+							{t('Checked {time}', { time: new Date(checkedAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) })}
 						</Text>
 					</View>
 				</View>
 
 				<View style={styles.tableCard}>
 					<View style={styles.tableHeader}>
-						<Text style={[styles.headerCell, styles.nameCell]}>Room Sensor</Text>
-						<Text style={[styles.headerCell, styles.statusCell]}>Status</Text>
-						<Text numberOfLines={1} style={[styles.headerCell, styles.readingCell]}>Latest Reading</Text>
-						<Text numberOfLines={1} style={[styles.headerCell, styles.dateCell]}>Last Data Received</Text>
+						<Text style={[styles.headerCell, styles.nameCell]}>{t('Room Sensor')}</Text>
+						<Text style={[styles.headerCell, styles.statusCell]}>{t('Status')}</Text>
+						<Text numberOfLines={1} style={[styles.headerCell, styles.readingCell]}>{t('Latest Reading')}</Text>
+						<Text numberOfLines={1} style={[styles.headerCell, styles.dateCell]}>{t('Last Data Received')}</Text>
 					</View>
 
 					{loading ? (
@@ -281,7 +287,7 @@ export default function AdminSensorTab() {
 							ListEmptyComponent={
 								<View style={styles.emptyWrap}>
 									<Ionicons name="hardware-chip-outline" size={40} color="#d1d5db" />
-									<Text style={styles.empty}>No sensors found.</Text>
+									<Text style={styles.empty}>{t('No sensors found.')}</Text>
 								</View>
 							}
 						/>

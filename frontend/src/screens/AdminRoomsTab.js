@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useApp } from "../context/AppContext";
+import { useI18n } from "../i18n";
 import { API_BASE_URL } from "../../constants/api";
 
 function formatDate(dateStr) {
@@ -46,6 +47,7 @@ const EMPTY_FORM = {
 
 export default function AdminRoomsTab() {
   const { user } = useApp();
+  const { t } = useI18n();
   const { width } = useWindowDimensions();
   const isWide = Platform.OS === "web" && width >= 768;
 
@@ -82,11 +84,11 @@ export default function AdminRoomsTab() {
         usersRes.json(),
       ]);
       if (!roomsRes.ok)
-        throw new Error(roomsData.error || "Failed to fetch rooms");
+        throw new Error(t(roomsData.error || "Failed to fetch rooms"));
       if (!bilikRes.ok)
-        throw new Error(bilikData.error || "Failed to fetch bilik");
+        throw new Error(t(bilikData.error || "Failed to fetch bilik"));
       if (!usersRes.ok)
-        throw new Error(usersData.error || "Failed to fetch users");
+        throw new Error(t(usersData.error || "Failed to fetch users"));
       const byRoom = {};
       for (const u of usersData.users) {
         if (u.room_id == null) continue;
@@ -112,9 +114,9 @@ export default function AdminRoomsTab() {
       }));
       setRooms(mapped);
     } catch (err) {
-      Alert.alert("Error", err.message);
+      Alert.alert(t("Error"), err.message);
     }
-  }, [user?.token]);
+  }, [user?.token, t]);
 
   useEffect(() => {
     fetchRooms().finally(() => setLoading(false));
@@ -154,7 +156,7 @@ export default function AdminRoomsTab() {
     });
   }, [rooms, bilikOptions, residentsByRoom, search, sortBy, alertOnly, missingOnly]);
 
-  const sortLabel = sortBy === "updated" ? "Sort by Date" : "Sort by Name";
+  const sortLabel = sortBy === "updated" ? t("Sort by Date") : t("Sort by Name");
 
   const openAddModal = () => {
     setEditingId(null);
@@ -183,7 +185,7 @@ export default function AdminRoomsTab() {
   const handleSave = async () => {
     setFormError("");
     if (!form.name.trim()) {
-      setFormError("Room name is required.");
+      setFormError(t("Room name is required."));
       return;
     }
     setSubmitting(true);
@@ -207,13 +209,13 @@ export default function AdminRoomsTab() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setFormError(data.error || "Failed to save room");
+        setFormError(t(data.error || "Failed to save room"));
         return;
       }
       setModalVisible(false);
       await fetchRooms();
     } catch {
-      setFormError("Unable to connect to server.");
+      setFormError(t("Unable to connect to server."));
     } finally {
       setSubmitting(false);
     }
@@ -222,12 +224,12 @@ export default function AdminRoomsTab() {
   const handleDelete = useCallback(
     (roomId, roomName) => {
       Alert.alert(
-        "Delete Room",
-        `Delete ${roomName}? This action cannot be undone.`,
+        t("Delete Room"),
+        t("Delete {name}? This action cannot be undone.", { name: roomName }),
         [
-          { text: "Cancel", style: "cancel" },
+          { text: t("Cancel"), style: "cancel" },
           {
-            text: "Delete",
+            text: t("Delete"),
             style: "destructive",
             onPress: async () => {
               try {
@@ -236,19 +238,19 @@ export default function AdminRoomsTab() {
                   headers: authHeader,
                 });
                 if (!res.ok) {
-                  Alert.alert("Error", "Failed to delete room");
+                  Alert.alert(t("Error"), t("Failed to delete room"));
                   return;
                 }
                 setRooms((cur) => cur.filter((r) => r.id !== roomId));
               } catch {
-                Alert.alert("Error", "Unable to connect to server.");
+                Alert.alert(t("Error"), t("Unable to connect to server."));
               }
             },
           },
         ],
       );
     },
-    [user?.token],
+    [user?.token, t],
   );
 
   const renderItem = ({ item, index }) => {
@@ -268,8 +270,8 @@ export default function AdminRoomsTab() {
               <Text style={styles.roomName}>{item.name}</Text>
               <Text style={styles.roomBilik} numberOfLines={1}>
                 {associatedBilik
-                  ? `Bilik: ${associatedBilik.number}${associatedBilik.household ? ` · ${associatedBilik.household}` : ""}`
-                  : "No Bilik assigned"}
+                  ? `${t("Bilik: {number}", { number: associatedBilik.number })}${associatedBilik.household ? ` · ${associatedBilik.household}` : ""}`
+                  : t("No Bilik assigned")}
               </Text>
               <View style={styles.residentRow}>
                 <Ionicons
@@ -284,7 +286,7 @@ export default function AdminRoomsTab() {
                   ]}
                   numberOfLines={1}
                 >
-                  {residents.length ? residents.join(", ") : "No residents"}
+                  {residents.length ? residents.join(", ") : t("No residents")}
                 </Text>
               </View>
             </View>
@@ -310,7 +312,7 @@ export default function AdminRoomsTab() {
                 item.isAlert ? styles.badgeTextAlert : styles.badgeTextSafe,
               ]}
             >
-              {item.isAlert ? "Alert" : "Safe"}
+              {item.isAlert ? t("Alert") : t("Safe")}
             </Text>
           </View>
         </View>
@@ -325,7 +327,7 @@ export default function AdminRoomsTab() {
                   styles.deviceChip,
                   installed ? styles.deviceChipOn : styles.deviceChipOff,
                 ]}
-                accessibilityLabel={`${d.label} ${installed ? "installed" : "not installed"}`}
+                accessibilityLabel={t(installed ? "{device} installed" : "{device} not installed", { device: t(d.label) })}
               >
                 <Ionicons
                   name={installed ? "checkmark-circle" : "close-circle-outline"}
@@ -338,7 +340,7 @@ export default function AdminRoomsTab() {
                     installed ? styles.deviceChipTextOn : styles.deviceChipTextOff,
                   ]}
                 >
-                  {d.label}
+                  {t(d.label)}
                 </Text>
               </View>
             );
@@ -383,7 +385,7 @@ export default function AdminRoomsTab() {
           <View style={[styles.modalCard, isWide && styles.modalCardWeb]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                {editingId ? "Edit Room" : "Add New Room"}
+                {editingId ? t("Edit Room") : t("Add New Room")}
               </Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <Ionicons name="close" size={22} color="#374151" />
@@ -391,21 +393,21 @@ export default function AdminRoomsTab() {
             </View>
 
             <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={styles.fieldLabel}>Room Name</Text>
+              <Text style={styles.fieldLabel}>{t("Room Name")}</Text>
               <TextInput
                 style={styles.fieldInput}
-                placeholder="e.g. Room 1"
+                placeholder={t("e.g. Room 1")}
                 placeholderTextColor="#9ca3af"
                 value={form.name}
                 onChangeText={(v) => setForm((f) => ({ ...f, name: v }))}
               />
 
-              <Text style={styles.fieldLabel}>Associated Bilik</Text>
+              <Text style={styles.fieldLabel}>{t("Associated Bilik")}</Text>
               <TouchableOpacity
                 style={styles.bilikSelect}
                 onPress={() => setBilikMenuOpen((open) => !open)}
                 accessibilityRole="button"
-                accessibilityLabel="Select associated bilik"
+                accessibilityLabel={t("Select associated bilik")}
               >
                 <Text
                   style={[
@@ -414,7 +416,7 @@ export default function AdminRoomsTab() {
                   ]}
                 >
                   {bilikOptions.find((item) => item.id === form.bilikId)
-                    ?.number || "No Bilik assigned"}
+                    ?.number || t("No Bilik assigned")}
                 </Text>
                 <Ionicons
                   name={bilikMenuOpen ? "chevron-up" : "chevron-down"}
@@ -436,7 +438,7 @@ export default function AdminRoomsTab() {
                       }}
                     >
                       <Text style={styles.bilikOptionText}>
-                        No Bilik assigned
+                        {t("No Bilik assigned")}
                       </Text>
                     </TouchableOpacity>
                     {bilikOptions.map((item) => (
@@ -461,7 +463,7 @@ export default function AdminRoomsTab() {
                 </View>
               ) : null}
 
-              <Text style={styles.fieldLabel}>Installed Devices</Text>
+              <Text style={styles.fieldLabel}>{t("Installed Devices")}</Text>
               <View style={styles.deviceToggles}>
                 {DEVICES.map((d) => {
                   const on = form[d.key];
@@ -474,7 +476,7 @@ export default function AdminRoomsTab() {
                       }
                       accessibilityRole="checkbox"
                       accessibilityState={{ checked: on }}
-                      accessibilityLabel={`${d.label} installed`}
+                      accessibilityLabel={t("{device} installed", { device: t(d.label) })}
                     >
                       <Ionicons
                         name={d.icon}
@@ -487,7 +489,7 @@ export default function AdminRoomsTab() {
                           on && styles.deviceToggleTextOn,
                         ]}
                       >
-                        {d.label}
+                        {t(d.label)}
                       </Text>
                       <Ionicons
                         name={on ? "checkbox" : "square-outline"}
@@ -522,7 +524,7 @@ export default function AdminRoomsTab() {
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
                   <Text style={styles.submitBtnText}>
-                    {editingId ? "Save Changes" : "Create Room"}
+                    {editingId ? t("Save Changes") : t("Create Room")}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -532,8 +534,8 @@ export default function AdminRoomsTab() {
       </Modal>
 
       <View style={[styles.headerTop, isWide && styles.headerTopWeb]}>
-        <Text style={styles.headerTitle}>Manage Rooms</Text>
-        <Text style={styles.headerSubtitle}>Monitor and manage rooms</Text>
+        <Text style={styles.headerTitle}>{t("Manage Rooms")}</Text>
+        <Text style={styles.headerSubtitle}>{t("Monitor and manage rooms")}</Text>
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <View style={styles.statIconWrap}>
@@ -544,7 +546,7 @@ export default function AdminRoomsTab() {
               />
             </View>
             <Text style={styles.statNumber}>{totalRooms}</Text>
-            <Text style={styles.statLabel}>Total Rooms</Text>
+            <Text style={styles.statLabel}>{t("Total Rooms")}</Text>
           </View>
           <View style={styles.statCard}>
             <View style={styles.statIconWrap}>
@@ -555,7 +557,7 @@ export default function AdminRoomsTab() {
               />
             </View>
             <Text style={styles.statNumber}>{alertCount}</Text>
-            <Text style={styles.statLabel}>Alert</Text>
+            <Text style={styles.statLabel}>{t("Alert")}</Text>
           </View>
           <View style={styles.statCard}>
             <View style={styles.statIconWrap}>
@@ -566,7 +568,7 @@ export default function AdminRoomsTab() {
               />
             </View>
             <Text style={styles.statNumber}>{missingCount}</Text>
-            <Text style={styles.statLabel}>Missing Devices</Text>
+            <Text style={styles.statLabel}>{t("Missing Devices")}</Text>
           </View>
         </View>
       </View>
@@ -576,7 +578,7 @@ export default function AdminRoomsTab() {
           <View style={styles.searchBox}>
             <Ionicons name="search" size={16} color="#9ca3af" />
             <TextInput
-              placeholder="Search by room, bilik or resident..."
+              placeholder={t("Search by room, bilik or resident...")}
               placeholderTextColor="#9ca3af"
               value={search}
               onChangeText={setSearch}
@@ -616,7 +618,7 @@ export default function AdminRoomsTab() {
                     alertOnly && styles.filterTextActive,
                   ]}
                 >
-                  Alert Only
+                  {t("Alert Only")}
                 </Text>
               </TouchableOpacity>
 
@@ -631,15 +633,15 @@ export default function AdminRoomsTab() {
                     missingOnly && styles.filterTextActive,
                   ]}
                 >
-                  Missing Devices
+                  {t("Missing Devices")}
                 </Text>
               </TouchableOpacity>
 
               {showSortMenu && (
                 <View style={styles.sortMenu}>
                   {[
-                    ["name", "Sort by Name"],
-                    ["updated", "Sort by Date"],
+                    ["name", t("Sort by Name")],
+                    ["updated", t("Sort by Date")],
                   ].map(([val, label]) => (
                     <TouchableOpacity
                       key={val}
@@ -668,20 +670,20 @@ export default function AdminRoomsTab() {
 
             <TouchableOpacity style={styles.addBtn} onPress={openAddModal}>
               <Ionicons name="add-outline" size={16} color="#fff" />
-              <Text style={styles.addText}>Add Room</Text>
+              <Text style={styles.addText}>{t("Add Room")}</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         <View style={styles.tableCard}>
           <View style={styles.tableHeader}>
-            <Text style={[styles.headerCell, styles.nameCell]}>Room</Text>
-            <Text style={[styles.headerCell, styles.statusCell]}>Status</Text>
-            <Text style={[styles.headerCell, styles.devicesCell]}>Devices</Text>
+            <Text style={[styles.headerCell, styles.nameCell]}>{t("Room")}</Text>
+            <Text style={[styles.headerCell, styles.statusCell]}>{t("Status")}</Text>
+            <Text style={[styles.headerCell, styles.devicesCell]}>{t("Devices")}</Text>
             <Text style={[styles.headerCell, styles.dateCell]}>
-              Last Updated
+              {t("Last Updated")}
             </Text>
-            <Text style={[styles.headerCell, styles.actionCell]}>Actions</Text>
+            <Text style={[styles.headerCell, styles.actionCell]}>{t("Actions")}</Text>
           </View>
 
           {loading ? (
@@ -701,7 +703,7 @@ export default function AdminRoomsTab() {
               ListEmptyComponent={
                 <View style={styles.emptyWrap}>
                   <Ionicons name="home-outline" size={40} color="#d1d5db" />
-                  <Text style={styles.empty}>No rooms found.</Text>
+                  <Text style={styles.empty}>{t("No rooms found.")}</Text>
                 </View>
               }
             />

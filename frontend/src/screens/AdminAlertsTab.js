@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
+import { useI18n } from '../i18n';
 import { API_BASE_URL } from '../../constants/api';
 
 function formatDateTime(dateStr) {
@@ -30,6 +31,7 @@ function formatDateTime(dateStr) {
 
 export default function AdminAlertsTab() {
 	const { user } = useApp();
+	const { t } = useI18n();
 	const { width } = useWindowDimensions();
 	const isWide = Platform.OS === 'web' && width >= 768;
 
@@ -49,7 +51,7 @@ export default function AdminAlertsTab() {
 				headers: authHeader,
 			});
 			const data = await res.json();
-			if (!res.ok) throw new Error(data.error || 'Failed to fetch alerts');
+			if (!res.ok) throw new Error(t(data.error || 'Failed to fetch alerts'));
 			const mapped = data.alerts.map((a) => ({
 				id: a.alert_id,
 				roomId: a.room_id,
@@ -61,9 +63,9 @@ export default function AdminAlertsTab() {
 			}));
 			setAlerts(mapped);
 		} catch (err) {
-			Alert.alert('Error', err.message);
+			Alert.alert(t('Error'), err.message);
 		}
-	}, [user?.token]);
+	}, [user?.token, t]);
 
 	useEffect(() => {
 		fetchAlerts().finally(() => setLoading(false));
@@ -93,7 +95,7 @@ export default function AdminAlertsTab() {
 		});
 	}, [alerts, search, sortBy, unreadOnly]);
 
-	const sortLabel = sortBy === 'oldest' ? 'Oldest First' : 'Newest First';
+	const sortLabel = sortBy === 'oldest' ? t('Oldest First') : t('Newest First');
 
 	// const handleAcknowledge = useCallback(async (alertId) => {
 	// 	try {
@@ -189,29 +191,29 @@ export default function AdminAlertsTab() {
 			<StatusBar barStyle="light-content" />
 
 			<View style={[styles.headerTop, isWide && styles.headerTopWeb]}>
-				<Text style={styles.headerTitle}>Alert Notifications</Text>
-				<Text style={styles.headerSubtitle}>Monitor and acknowledge system alerts</Text>
+				<Text style={styles.headerTitle}>{t('Alert Notifications')}</Text>
+				<Text style={styles.headerSubtitle}>{t('Monitor and acknowledge system alerts')}</Text>
 				<View style={styles.statsRow}>
 					<View style={styles.statCard}>
 						<View style={styles.statIconWrap}>
 							<Ionicons name="notifications-outline" size={20} color="rgba(255,255,255,0.9)" />
 						</View>
 						<Text style={styles.statNumber}>{totalAlerts}</Text>
-						<Text style={styles.statLabel}>Total</Text>
+						<Text style={styles.statLabel}>{t('Total')}</Text>
 					</View>
 					<View style={styles.statCard}>
 						<View style={styles.statIconWrap}>
 							<Ionicons name="alert-circle-outline" size={20} color="rgba(255,255,255,0.9)" />
 						</View>
 						<Text style={styles.statNumber}>{unreadCount}</Text>
-						<Text style={styles.statLabel}>Unread</Text>
+						<Text style={styles.statLabel}>{t('Unread')}</Text>
 					</View>
 					<View style={styles.statCard}>
 						<View style={styles.statIconWrap}>
 							<Ionicons name="checkmark-circle-outline" size={20} color="rgba(255,255,255,0.9)" />
 						</View>
 						<Text style={styles.statNumber}>{readCount}</Text>
-						<Text style={styles.statLabel}>Acknowledged</Text>
+						<Text style={styles.statLabel}>{t('Acknowledged')}</Text>
 					</View>
 				</View>
 			</View>
@@ -221,7 +223,7 @@ export default function AdminAlertsTab() {
 					<View style={styles.searchBox}>
 						<Ionicons name="search" size={16} color="#9ca3af" />
 						<TextInput
-							placeholder="Search by warning, room or bilik..."
+							placeholder={t('Search by warning, room or bilik...')}
 							placeholderTextColor="#9ca3af"
 							value={search}
 							onChangeText={setSearch}
@@ -249,12 +251,12 @@ export default function AdminAlertsTab() {
 								style={[styles.filterBtn, unreadOnly && styles.filterBtnActive]}
 								onPress={() => setUnreadOnly((v) => !v)}
 							>
-								<Text style={[styles.filterText, unreadOnly && styles.filterTextActive]}>Unread Only</Text>
+								<Text style={[styles.filterText, unreadOnly && styles.filterTextActive]}>{t('Unread Only')}</Text>
 							</TouchableOpacity>
 
 							{showSortMenu && (
 								<View style={styles.sortMenu}>
-									{[['newest', 'Newest First'], ['oldest', 'Oldest First']].map(([val, label]) => (
+									{[['newest', t('Newest First')], ['oldest', t('Oldest First')]].map(([val, label]) => (
 										<TouchableOpacity
 											key={val}
 											style={styles.sortOption}
@@ -272,9 +274,9 @@ export default function AdminAlertsTab() {
 
 				<View style={styles.tableCard}>
 					<View style={styles.tableHeader}>
-						<Text style={[styles.headerCell, styles.hRoomId]}>Room</Text>
-						<Text style={[styles.headerCell, styles.hTime]}>Time</Text>
-						<Text style={[styles.headerCell, styles.hAck]}>Warning Title</Text>
+						<Text style={[styles.headerCell, styles.hRoomId]}>{t('Room')}</Text>
+						<Text style={[styles.headerCell, styles.hTime]}>{t('Time')}</Text>
+						<Text style={[styles.headerCell, styles.hAck]}>{t('Warning Title')}</Text>
 					</View>
 
 					{loading ? (
@@ -290,7 +292,7 @@ export default function AdminAlertsTab() {
 							ListEmptyComponent={
 								<View style={styles.emptyWrap}>
 									<Ionicons name="notifications-off-outline" size={40} color="#d1d5db" />
-									<Text style={styles.empty}>No alerts found.</Text>
+									<Text style={styles.empty}>{t('No alerts found.')}</Text>
 								</View>
 							}
 						/>
