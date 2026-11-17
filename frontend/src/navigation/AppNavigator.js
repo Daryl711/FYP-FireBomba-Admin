@@ -21,6 +21,7 @@ import AdminSensorTab from "../screens/AdminSensorTab";
 import AdminWaterpumpTab from "../screens/AdminWaterpumpTab";
 import AdminProfile from "../screens/AdminProfile";
 import { useApp } from "../context/AppContext";
+import { useI18n } from "../i18n";
 
 const AdminTab = createBottomTabNavigator();
 const RootStack = createNativeStackNavigator();
@@ -114,19 +115,21 @@ function renderAdminScreen(key) {
 
 const ACTIVE_TAB_KEY = "firebomba_active_tab";
 
-function loadActiveTab() {
+function loadActiveTab(fallback) {
   try {
-    return localStorage.getItem(ACTIVE_TAB_KEY) || "AdminUsers";
+    return localStorage.getItem(ACTIVE_TAB_KEY) || fallback;
   } catch {}
-  return "AdminUsers";
+  return fallback;
 }
 
 // Sidebar layout rendered on wide web screens (>= 768 px)
 function AdminWebLayout({ navigation }) {
+  const { setUser, settings } = useApp();
+  const { t } = useI18n();
+  const defaultTab = settings?.defaultTab || "AdminUsers";
   const [activeTab, setActiveTabState] = useState(() =>
-    Platform.OS === "web" ? loadActiveTab() : "AdminUsers",
+    Platform.OS === "web" ? loadActiveTab(defaultTab) : defaultTab,
   );
-  const { setUser } = useApp();
 
   const setActiveTab = (tab) => {
     setActiveTabState(tab);
@@ -148,7 +151,7 @@ function AdminWebLayout({ navigation }) {
             </View>
             <View>
               <Text style={webStyles.brandName}>FireBomba</Text>
-              <Text style={webStyles.brandSub}>Admin Panel</Text>
+              <Text style={webStyles.brandSub}>{t("Admin Panel")}</Text>
             </View>
           </View>
 
@@ -173,7 +176,7 @@ function AdminWebLayout({ navigation }) {
                     isActive && webStyles.navLabelActive,
                   ]}
                 >
-                  {item.label}
+                  {t(item.label)}
                 </Text>
               </TouchableOpacity>
             );
@@ -191,7 +194,7 @@ function AdminWebLayout({ navigation }) {
           }}
         >
           <Ionicons name="log-out-outline" size={20} color="#6b7280" />
-          <Text style={webStyles.logoutText}>Logout</Text>
+          <Text style={webStyles.logoutText}>{t("Logout")}</Text>
         </TouchableOpacity>
       </View>
 
@@ -205,6 +208,8 @@ function AdminWebLayout({ navigation }) {
 function AdminTabs({ navigation }) {
   const { width } = useWindowDimensions();
   const isWide = Platform.OS === "web" && width >= WEB_BREAKPOINT;
+  const { settings } = useApp();
+  const { t } = useI18n();
 
   if (isWide) {
     return <AdminWebLayout navigation={navigation} />;
@@ -212,7 +217,7 @@ function AdminTabs({ navigation }) {
 
   return (
     <AdminTab.Navigator
-      initialRouteName="AdminUsers"
+      initialRouteName={settings?.defaultTab || "AdminUsers"}
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: "#E53935",
@@ -242,37 +247,37 @@ function AdminTabs({ navigation }) {
       <AdminTab.Screen
         name="AdminUsers"
         component={AdminUsersTab}
-        options={{ tabBarLabel: "Users" }}
+        options={{ tabBarLabel: t("Users") }}
       />
       <AdminTab.Screen
         name="AdminRooms"
         component={AdminRoomsTab}
-        options={{ tabBarLabel: "Rooms" }}
+        options={{ tabBarLabel: t("Rooms") }}
       />
       <AdminTab.Screen
         name="AdminBilik"
         component={AdminBilikTab}
-        options={{ tabBarLabel: "Bilik" }}
+        options={{ tabBarLabel: t("Bilik") }}
       />
       <AdminTab.Screen
         name="AdminSensors"
         component={AdminSensorTab}
-        options={{ tabBarLabel: "Sensors" }}
+        options={{ tabBarLabel: t("Sensors") }}
       />
       <AdminTab.Screen
         name="AdminAlerts"
         component={AdminAlertsTab}
-        options={{ tabBarLabel: "Alerts" }}
+        options={{ tabBarLabel: t("Alerts") }}
       />
       <AdminTab.Screen
         name="AdminWaterpump"
         component={AdminWaterpumpTab}
-        options={{ tabBarLabel: "Pump" }}
+        options={{ tabBarLabel: t("Pump") }}
       />
       <AdminTab.Screen
         name="AdminProfile"
         component={AdminProfile}
-        options={{ tabBarLabel: "Profile" }}
+        options={{ tabBarLabel: t("Profile") }}
       />
     </AdminTab.Navigator>
   );
